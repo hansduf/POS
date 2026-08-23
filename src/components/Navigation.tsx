@@ -3,6 +3,9 @@
 import React from 'react';
 import { ShoppingBag, Truck, Package, Store, LayoutDashboard, Settings } from 'lucide-react';
 
+import { StoreSettings } from '@/types';
+import { DEFAULT_SETTINGS } from '@/lib/store';
+
 export type TabType = 'order' | 'pengiriman' | 'stok' | 'toko' | 'dashboard';
 
 interface NavigationProps {
@@ -12,6 +15,7 @@ interface NavigationProps {
   deliveryCount?: number;
   openCart: () => void;
   onOpenSettings?: () => void;
+  settings?: StoreSettings;
 }
 
 export const Navigation: React.FC<NavigationProps> = ({
@@ -21,7 +25,11 @@ export const Navigation: React.FC<NavigationProps> = ({
   deliveryCount = 0,
   openCart,
   onOpenSettings,
+  settings = DEFAULT_SETTINGS,
 }) => {
+  const storeName = settings.nama_usaha || 'DISTRIBUTOR JOSJIS';
+  const initialLetter = storeName.charAt(0).toUpperCase() || 'S';
+
   const navItems = [
     { id: 'order' as TabType, label: 'Order Sales', icon: ShoppingBag, badge: cartCount > 0 ? cartCount : null },
     { id: 'pengiriman' as TabType, label: 'Pengiriman', icon: Truck, badge: deliveryCount > 0 ? deliveryCount : null },
@@ -36,11 +44,11 @@ export const Navigation: React.FC<NavigationProps> = ({
       <header className="hidden md:flex items-center justify-between px-6 py-3.5 bg-white border-b border-slate-200 text-slate-900 sticky top-0 z-40 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center shadow-sm text-white font-black text-lg">
-            S
+            {initialLetter}
           </div>
           <div>
             <h1 className="font-extrabold text-base leading-tight text-slate-900">
-              Sales Canvasser Pasar
+              {storeName}
             </h1>
             <p className="text-[11px] text-slate-500 font-medium">Sistem Penjualan & Pengiriman Lapangan</p>
           </div>
@@ -89,10 +97,10 @@ export const Navigation: React.FC<NavigationProps> = ({
       <div className="md:hidden flex items-center justify-between px-4 py-2.5 bg-white text-slate-900 border-b border-slate-200 sticky top-0 z-30 shadow-sm">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white font-black flex items-center justify-center text-sm">
-            S
+            {initialLetter}
           </div>
           <div>
-            <h2 className="font-extrabold text-xs text-slate-900 leading-tight">Sales Canvass</h2>
+            <h2 className="font-extrabold text-xs text-slate-900 leading-tight">{storeName}</h2>
             <p className="text-[10px] text-slate-500 font-medium">Pasar Lapangan</p>
           </div>
         </div>

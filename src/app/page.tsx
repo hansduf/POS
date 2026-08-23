@@ -313,6 +313,7 @@ export default function Home() {
         deliveryCount={todayDeliveryCount}
         openCart={() => setIsCartOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        settings={storeSettings}
       />
 
       {/* Main Container */}
