@@ -5,6 +5,9 @@ import { Toko, Product, JenisPembayaran, Order } from '@/types';
 import { X, ShoppingBag, Trash2, Calendar, CreditCard, Send, CheckCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
+import { StoreSettings } from '@/types';
+import { DEFAULT_SETTINGS } from '@/lib/store';
+
 export interface CartItem {
   product: Product;
   qty: number;
@@ -20,6 +23,7 @@ interface CartDrawerProps {
   onRemoveItem: (productId: string) => void;
   onClearCart: () => void;
   onCheckout: (orderData: Omit<Order, 'id' | 'no_nota' | 'created_at'>) => Promise<Order>;
+  settings?: StoreSettings;
 }
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({
@@ -31,6 +35,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onRemoveItem,
   onClearCart,
   onCheckout,
+  settings = DEFAULT_SETTINGS,
 }) => {
   const todayStr = new Date().toISOString().split('T')[0];
   const [jenisPembayaran, setJenisPembayaran] = useState<JenisPembayaran>('Cash');
@@ -38,15 +43,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const [catatanPengiriman, setCatatanPengiriman] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
+  const [savedCartItems, setSavedCartItems] = useState<CartItem[]>([]);
 
   if (!isOpen) return null;
-
-  const totalBayar = cartItems.reduce((sum, item) => sum + item.qty * item.dealPrice, 0);
 
   const formatIDR = (val: number) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(
       val
     );
+
+  const totalBayar = cartItems.reduce((sum, item) => sum + item.qty * item.dealPrice, 0);
 
   const handleProcessCheckout = async () => {
     if (!selectedToko) {
@@ -62,6 +68,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       setIsSubmitting(true);
       const items = cartItems.map((c) => ({
         product_id: c.product.id,
+        product: c.product,
         jumlah: c.qty,
         harga_deal: c.dealPrice,
         subtotal: c.qty * c.dealPrice,
@@ -85,6 +92,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
       confetti({ particleCount: 70, spread: 60, origin: { y: 0.7 } });
 
+      setSavedCartItems([...cartItems]);
       setCompletedOrder(newOrder);
       onClearCart();
     } catch (err: unknown) {
@@ -96,22 +104,44 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   };
 
   const generateWAString = (order: Order) => {
-    const tokoName = selectedToko?.nama_toko || 'Toko Pelanggan';
+    const tokoName = selectedToko?.nama_toko || order.toko?.nama_toko || 'Toko Pelanggan';
+    const storeHeader = (settings?.nama_usaha || 'DISTRIBUTOR JOSJIS').toUpperCase();
     const lines = [
-      `*NOTA PENJUALAN - CANVASSING* 🛍️`,
+      `*${storeHeader}* 🛍️`,
+      `*NOTA PENJUALAN CANVASSING*`,
       `---------------------------------`,
       `No. Nota: *${order.no_nota}*`,
       `Toko: *${tokoName}*`,
-      `Pemilik: ${selectedToko?.nama_pemilik || '-'} (${selectedToko?.no_hp || '-'})`,
-      `Pasar: ${selectedToko?.lokasi_pasar || '-'}`,
+      `Pemilik: ${selectedToko?.nama_pemilik || order.toko?.nama_pemilik || '-'} (${selectedToko?.no_hp || order.toko?.no_hp || '-'})`,
+      `Pasar: ${selectedToko?.lokasi_pasar || order.toko?.lokasi_pasar || '-'}`,
       `---------------------------------`,
       `*Daftar Pesanan:*`,
     ];
 
-    cartItems.forEach((item, idx) => {
-      lines.push(`${idx + 1}. ${item.product.nama_produk}`);
-      lines.push(`   ${item.qty} x ${formatIDR(item.dealPrice)} = *${formatIDR(item.qty * item.dealPrice)}*`);
-    });
+    const itemsToList = (order.items && order.items.length > 0)
+      ? order.items.map((i) => ({
+          name: i.product?.nama_produk || (i as any).nama_produk || 'Produk',
+          qty: i.jumlah,
+          satuan: i.product?.satuan || 'Pcs',
+          price: i.harga_deal,
+          subtotal: i.subtotal,
+        }))
+      : savedCartItems.map((i) => ({
+          name: i.product.nama_produk,
+          qty: i.qty,
+          satuan: i.product.satuan || 'Pcs',
+          price: i.dealPrice,
+          subtotal: i.qty * i.dealPrice,
+        }));
+
+    if (itemsToList.length > 0) {
+      itemsToList.forEach((item, idx) => {
+        lines.push(`${idx + 1}. *${item.name}*`);
+        lines.push(`   ${item.qty} ${item.satuan} x @ ${formatIDR(item.price)} = *${formatIDR(item.subtotal)}*`);
+      });
+    } else {
+      lines.push(`- (Detail pesanan tidak tersedia)`);
+    }
 
     lines.push(`---------------------------------`);
     lines.push(`*TOTAL BAYAR: ${formatIDR(order.total_bayar)}*`);
@@ -121,7 +151,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       lines.push(`Catatan: ${order.catatan_pengiriman}`);
     }
     lines.push(`---------------------------------`);
-    lines.push(`Terima kasih telah berbelanja! 🙏`);
+    lines.push(`Terima kasih telah berbelanja di ${settings?.nama_usaha || 'kami'}! 🙏`);
 
     return encodeURIComponent(lines.join('\n'));
   };

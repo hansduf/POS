@@ -49,35 +49,42 @@ export const NotaModal: React.FC<NotaModalProps> = ({
   const handleShareWA = () => {
     const rawHp = order.toko?.no_hp?.replace(/[^0-9]/g, '') || '';
     const formattedHp = rawHp.startsWith('0') ? '62' + rawHp.slice(1) : rawHp;
+    const storeHeader = (settings?.nama_usaha || 'DISTRIBUTOR JOSJIS').toUpperCase();
 
     const lines = [
-      `*FAKTUR INVOICE PENJUALAN* 🛍️`,
+      `*${storeHeader}* 🛍️`,
+      `*NOTA PENJUALAN CANVASSING*`,
       `---------------------------------`,
-      `No. Invoice: *${order.no_nota}*`,
-      `Tgl Invoice: *${formatDate(order.created_at || order.tanggal_pengiriman)}*`,
-      `Toko Pelanggan: *${order.toko?.nama_toko || '-'}*`,
+      `No. Nota: *${order.no_nota}*`,
+      `Tgl Nota: *${formatDate(order.created_at || order.tanggal_pengiriman)}*`,
+      `Toko: *${order.toko?.nama_toko || 'Toko Pelanggan'}*`,
       `Pemilik: ${order.toko?.nama_pemilik || '-'} (${order.toko?.no_hp || '-'})`,
       `Pasar: ${order.toko?.lokasi_pasar || '-'}`,
       `---------------------------------`,
-      `*Daftar Rincian Produk:*`,
+      `*Daftar Rincian Pesanan:*`,
     ];
 
-    order.items?.forEach((item, idx) => {
-      const name = item.product?.nama_produk || 'Produk';
-      lines.push(`${idx + 1}. ${name}`);
-      lines.push(`   ${item.jumlah} ${item.product?.satuan || 'Pcs'} @ ${formatIDR(item.harga_deal)} = *${formatIDR(item.subtotal)}*`);
-    });
+    if (order.items && order.items.length > 0) {
+      order.items.forEach((item, idx) => {
+        const name = item.product?.nama_produk || (item as any).nama_produk || 'Produk';
+        const satuan = item.product?.satuan || (item as any).satuan || 'Pcs';
+        lines.push(`${idx + 1}. *${name}*`);
+        lines.push(`   ${item.jumlah} ${satuan} x @ ${formatIDR(item.harga_deal)} = *${formatIDR(item.subtotal)}*`);
+      });
+    } else {
+      lines.push(`- (Detail pesanan tidak tersedia)`);
+    }
 
     lines.push(`---------------------------------`);
-    lines.push(`*NET TOTAL: ${formatIDR(order.total_bayar)}*`);
+    lines.push(`*TOTAL BAYAR: ${formatIDR(order.total_bayar)}*`);
     lines.push(`Terbilang: _${terbilang(order.total_bayar)}_`);
-    lines.push(`Jenis Pembayaran: *${order.jenis_pembayaran}* (${order.status_pembayaran})`);
+    lines.push(`Jenis Bayar: *${order.jenis_pembayaran}* (${order.status_pembayaran})`);
     lines.push(`Rencana Kirim: *${order.tanggal_pengiriman}*`);
     if (order.penerima_nama) {
       lines.push(`Diterima Oleh: *${order.penerima_nama}*`);
     }
     lines.push(`---------------------------------`);
-    lines.push(`Terima kasih atas kerja samanya! 🙏`);
+    lines.push(`Terima kasih telah berbelanja di ${settings?.nama_usaha || 'kami'}! 🙏`);
 
     const waUrl = formattedHp
       ? `https://wa.me/${formattedHp}?text=${encodeURIComponent(lines.join('\n'))}`

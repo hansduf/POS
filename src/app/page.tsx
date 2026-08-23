@@ -960,6 +960,7 @@ export default function Home() {
         onRemoveItem={handleRemoveCartItem}
         onClearCart={() => setCartItems([])}
         onCheckout={handleCheckoutOrder}
+        settings={storeSettings}
       />
 
       <DeliveryLoadSummaryModal
