@@ -247,12 +247,6 @@ export default function Home() {
     refreshData();
   }, []);
 
-  const todayDeliveryCount = useMemo(() => {
-    return orders.filter(
-      (o) => o.tanggal_pengiriman === todayStr && o.status_pengiriman !== 'Terkirim'
-    ).length;
-  }, [orders, todayStr]);
-
   // Cart operations
   const handleAddToCart = (product: Product, qty: number, dealPrice: number) => {
     setCartItems((prev) => {
@@ -473,6 +467,17 @@ _Sistem Kasir Distributor POS Canvassing_`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
+  const isSameDate = (d1?: string, d2?: string) => {
+    if (!d1 || !d2) return false;
+    return d1.substring(0, 10) === d2.substring(0, 10);
+  };
+
+  const todayDeliveryCount = useMemo(() => {
+    return orders.filter(
+      (o) => isSameDate(o.tanggal_pengiriman, todayStr) && o.status_pengiriman !== 'Terkirim'
+    ).length;
+  }, [orders, todayStr]);
+
   if (!isMounted) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
@@ -626,7 +631,7 @@ _Sistem Kasir Distributor POS Canvassing_`;
                     orders
                       .filter(
                         (o) =>
-                          (!deliveryDate || o.tanggal_pengiriman === deliveryDate) &&
+                          (!deliveryDate || isSameDate(o.tanggal_pengiriman, deliveryDate)) &&
                           o.status_pembayaran === 'Lunas' &&
                           o.status_pengiriman === 'Terkirim'
                       )
@@ -638,7 +643,7 @@ _Sistem Kasir Distributor POS Canvassing_`;
               <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-xs">
                 <span className="text-[10px] font-bold text-slate-500 block">📦 Status Terkirim</span>
                 <h4 className="text-sm sm:text-base font-black text-slate-900">
-                  {orders.filter((o) => (!deliveryDate || o.tanggal_pengiriman === deliveryDate) && o.status_pengiriman === 'Terkirim').length} / {orders.filter((o) => !deliveryDate || o.tanggal_pengiriman === deliveryDate).length} Toko
+                  {orders.filter((o) => (!deliveryDate || isSameDate(o.tanggal_pengiriman, deliveryDate)) && o.status_pengiriman === 'Terkirim').length} / {orders.filter((o) => !deliveryDate || isSameDate(o.tanggal_pengiriman, deliveryDate)).length} Toko
                 </h4>
               </div>
 
@@ -646,7 +651,7 @@ _Sistem Kasir Distributor POS Canvassing_`;
                 <div>
                   <span className="text-[10px] font-bold text-amber-900 block">⌛ Belum Terkirim</span>
                   <h4 className="text-sm sm:text-base font-black text-amber-900">
-                    {orders.filter((o) => (!deliveryDate || o.tanggal_pengiriman === deliveryDate) && o.status_pengiriman !== 'Terkirim' && o.status_pengiriman !== 'Batal').length} Order
+                    {orders.filter((o) => (!deliveryDate || isSameDate(o.tanggal_pengiriman, deliveryDate)) && o.status_pengiriman !== 'Terkirim' && o.status_pengiriman !== 'Batal').length} Order
                   </h4>
                 </div>
                 <button

@@ -1,6 +1,21 @@
 import { Toko, Product, Order, OrderItem, OrderLog, TokoPerformance, DeliveryLoadItem, StoreSettings } from '@/types';
 import { supabase, isSupabaseConfigured } from './supabase';
 
+export const generateUUID = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    try {
+      return crypto.randomUUID();
+    } catch {
+      // Fallback if in non-secure context
+    }
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 const STORAGE_KEYS = {
   TOKOS: 'pos_canvass_tokos_cache',
   PRODUCTS: 'pos_canvass_products_cache',
@@ -10,6 +25,7 @@ const STORAGE_KEYS = {
   PURCHASES: 'pos_canvass_purchases_cache',
   EXPENSES: 'pos_canvass_expenses_cache',
   OWNER_DRAWS: 'pos_canvass_owner_draws_cache',
+  QUEUE_TOKOS: 'pos_canvass_queue_tokos',
   QUEUE_ORDERS: 'pos_canvass_queue_orders',
   QUEUE_EXPENSES: 'pos_canvass_queue_expenses',
   QUEUE_DRAWS: 'pos_canvass_queue_draws',
@@ -156,7 +172,7 @@ export class StoreManager {
   static async saveToko(toko: Omit<Toko, 'id' | 'created_at'>): Promise<Toko> {
     const newToko: Toko = {
       ...toko,
-      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'toko-' + Date.now(),
+      id: generateUUID(),
       created_at: new Date().toISOString(),
     };
 
@@ -165,6 +181,7 @@ export class StoreManager {
         const { data, error } = await supabase
           .from('tokos')
           .insert([{
+            id: newToko.id,
             nama_toko: newToko.nama_toko,
             lokasi_pasar: newToko.lokasi_pasar,
             nama_pemilik: newToko.nama_pemilik,
@@ -184,6 +201,13 @@ export class StoreManager {
       } catch (err) {
         console.warn('Supabase save toko error:', err);
       }
+    }
+
+    if (typeof window !== 'undefined') {
+      const qStr = localStorage.getItem(STORAGE_KEYS.QUEUE_TOKOS);
+      const qList = qStr ? JSON.parse(qStr) : [];
+      qList.push(newToko);
+      localStorage.setItem(STORAGE_KEYS.QUEUE_TOKOS, JSON.stringify(qList));
     }
 
     const cache = this.getTokosCache();
@@ -400,6 +424,35 @@ export class StoreManager {
     let syncedExpenses = 0;
     let syncedDraws = 0;
     let syncedPurchases = 0;
+
+    // 0. Sync Tokos Queue FIRST so foreign key constraints are satisfied!
+    const tokosQueueStr = localStorage.getItem(STORAGE_KEYS.QUEUE_TOKOS);
+    if (tokosQueueStr) {
+      try {
+        const tokosQueue: Toko[] = JSON.parse(tokosQueueStr);
+        const remainingTokos: Toko[] = [];
+        for (const tk of tokosQueue) {
+          try {
+            const { error } = await supabase.from('tokos').insert([{
+              id: tk.id,
+              nama_toko: tk.nama_toko,
+              lokasi_pasar: tk.lokasi_pasar,
+              nama_pemilik: tk.nama_pemilik,
+              no_hp: tk.no_hp,
+              lokasi_rumah: tk.lokasi_rumah,
+              catatan: tk.catatan,
+            }]);
+            if (error) remainingTokos.push(tk);
+          } catch {
+            remainingTokos.push(tk);
+          }
+        }
+        if (remainingTokos.length > 0) localStorage.setItem(STORAGE_KEYS.QUEUE_TOKOS, JSON.stringify(remainingTokos));
+        else localStorage.removeItem(STORAGE_KEYS.QUEUE_TOKOS);
+      } catch (err) {
+        console.warn('Queue tokos parse error:', err);
+      }
+    }
 
     // 1. Sync Orders Queue
     const ordersQueueStr = localStorage.getItem(STORAGE_KEYS.QUEUE_ORDERS);
@@ -626,15 +679,16 @@ export class StoreManager {
     }
 
     // Fallback Local
+    const newOrderId = generateUUID();
     const newOrder: Order = {
       ...orderData,
-      id: 'ord-' + Date.now(),
+      id: newOrderId,
       no_nota: noNota,
       created_at: new Date().toISOString(),
       logs: [
         {
-          id: 'log-' + Date.now(),
-          order_id: 'ord-' + Date.now(),
+          id: generateUUID(),
+          order_id: newOrderId,
           catatan_perubahan: `Nota ${noNota} dibuat`,
           created_at: new Date().toISOString(),
         },

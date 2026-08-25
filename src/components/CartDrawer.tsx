@@ -6,7 +6,7 @@ import { X, ShoppingBag, Trash2, Calendar, CreditCard, Send, CheckCircle } from 
 import confetti from 'canvas-confetti';
 
 import { StoreSettings } from '@/types';
-import { DEFAULT_SETTINGS } from '@/lib/store';
+import { DEFAULT_SETTINGS, getLocalTodayStr } from '@/lib/store';
 
 export interface CartItem {
   product: Product;
@@ -37,7 +37,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onCheckout,
   settings = DEFAULT_SETTINGS,
 }) => {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalTodayStr();
   const [jenisPembayaran, setJenisPembayaran] = useState<JenisPembayaran>('Cash');
   const [tanggalPengiriman, setTanggalPengiriman] = useState<string>(todayStr);
   const [catatanPengiriman, setCatatanPengiriman] = useState<string>('');
