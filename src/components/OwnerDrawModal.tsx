@@ -98,11 +98,13 @@ export const OwnerDrawModal: React.FC<OwnerDrawModalProps> = ({
             <div>
               <label className="block font-extrabold text-slate-700 mb-1">Nominal Tarik (Rp) *</label>
               <input
-                type="number"
-                min="0"
-                step="any"
-                value={nominal}
-                onChange={(e) => setNominal(Number(e.target.value))}
+                type="text"
+                value={nominal > 0 ? nominal.toLocaleString('id-ID') : ''}
+                onChange={(e) => {
+                  const clean = e.target.value.replace(/\D/g, '');
+                  setNominal(clean ? parseInt(clean, 10) : 0);
+                }}
+                placeholder="0"
                 className="w-full px-3 py-1.5 bg-white border border-blue-400 rounded-xl text-slate-900 font-black focus:outline-none focus:border-blue-600"
                 required
               />

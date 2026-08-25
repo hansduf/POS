@@ -153,3 +153,6 @@ export interface SoloFinancialBuckets {
   totalPenarikanGaji: number;
   totalPembelianRestock: number;
 }
+
+export type TimePeriod = 'today' | 'weekly' | 'monthly' | 'yearly' | 'all';
+

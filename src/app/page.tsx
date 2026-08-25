@@ -49,12 +49,18 @@ import {
   Store as StoreIcon,
   Package,
   TrendingUp,
+  TrendingDown,
   AlertCircle,
   FileSpreadsheet,
   RefreshCw,
   Edit2,
   FileText,
   Printer,
+  Download,
+  Share2,
+  ChevronLeft,
+  ChevronRight,
+  Award,
   Settings as SettingsIcon,
 } from 'lucide-react';
 
@@ -109,7 +115,11 @@ export default function Home() {
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [isOwnerDrawModalOpen, setIsOwnerDrawModalOpen] = useState(false);
   const [isSoloFinanceOpen, setIsSoloFinanceOpen] = useState(false);
-  const [financeSubTab, setFinanceSubTab] = useState<'kantong' | 'statistik' | 'histori'>('kantong');
+  const [financeSubTab, setFinanceSubTab] = useState<'kantong' | 'statistik' | 'histori' | 'kalender' | 'tutup_buku'>('kantong');
+  const [financePeriod, setFinancePeriod] = useState<import('@/types').TimePeriod>('monthly');
+  const [dashboardOrdersPeriod, setDashboardOrdersPeriod] = useState<import('@/types').TimePeriod>('all');
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
 
   const [isMounted, setIsMounted] = useState(false);
 
@@ -360,6 +370,60 @@ export default function Home() {
       currency: 'IDR',
       maximumFractionDigits: 0,
     }).format(val);
+
+  const handleExportExcel = () => {
+    const filteredOrders = StoreManager.filterByPeriod(orders, financePeriod, 'tanggal_pengiriman');
+    const filteredExpenses = StoreManager.filterByPeriod(expenses, financePeriod, 'tanggal');
+
+    let csv = "\uFEFF";
+    csv += `LAPORAN KEUANGAN - ${storeSettings.nama_usaha.toUpperCase()}\n`;
+    csv += `Periode Filter: ${financePeriod.toUpperCase()}\n`;
+    csv += `Tanggal Export: ${new Date().toLocaleDateString('id-ID')}\n\n`;
+
+    csv += "--- PENJUALAN NOTA LUNAS & TEMPO ---\n";
+    csv += "No Nota,Toko,Tanggal,Jenis Bayar,Status,Total Bayar (Rp)\n";
+    filteredOrders.forEach((o) => {
+      const tokoNama = tokos.find((t) => t.id === o.toko_id)?.nama_toko || o.toko?.nama_toko || 'Toko';
+      csv += `"${o.no_nota}","${tokoNama}","${o.tanggal_pengiriman}","${o.jenis_pembayaran}","${o.status_pembayaran}",${o.total_bayar}\n`;
+    });
+
+    csv += "\n--- PENGELUARAN OPERASIONAL LAPANGAN ---\n";
+    csv += "Kategori,Keterangan,Tanggal,Nominal (Rp)\n";
+    filteredExpenses.forEach((e) => {
+      csv += `"${e.kategori}","${e.keterangan || '-'}","${e.tanggal}",${e.nominal}\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Laporan_TutupBuku_${storeSettings.nama_usaha.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleShareWhatsApp = () => {
+    const buckets = StoreManager.getSoloFinancialBuckets(orders, purchases, expenses, ownerDraws);
+    const text = `*REKAP LAPORAN KEUANGAN ${storeSettings.nama_usaha.toUpperCase()}*
+----------------------------------------
+💰 Total Omset Penjualan Lunas: ${formatIDR(buckets.totalOmsetLunas)}
+
+📦 *Pos Belanja Stok (80%)*: ${formatIDR(buckets.posModalBelanjaStok)}
+⛽ *Pos Operasional (5%)*: ${formatIDR(buckets.posOperasional)}
+💵 *Pos Gaji Saya (15%)*: ${formatIDR(buckets.posGajiOwner)}
+
+--- PENGGUNAAN SALDO ---
+📦 Restock Supplier: ${formatIDR(buckets.totalPembelianRestock)}
+⛽ Pengeluaran Operasional: ${formatIDR(buckets.totalPengeluaranOperasional)}
+💵 Penarikan Gaji Pribadi: ${formatIDR(buckets.totalPenarikanGaji)}
+----------------------------------------
+_Sistem Kasir Distributor POS Canvassing_`;
+
+    navigator.clipboard.writeText(text);
+    alert('Ringkasan laporan berhasil disalin ke clipboard! Membuka WhatsApp...');
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
 
   if (!isMounted) {
     return (
@@ -952,44 +1016,95 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 5: POS KEUANGAN SOLO (3 KANTONG & STATISTIK) */}
+        {/* TAB 5: POS KEUANGAN SOLO (3 KANTONG, GRAFIK, HISTORI, KALENDER, TUTUP BUKU) */}
         {activeTab === 'keuangan' && (
           <div className="space-y-3">
-            {/* Header Sub-Tabs Selector Bar */}
-            <div className="bg-white border border-slate-200 rounded-xl p-1.5 shadow-xs flex items-center justify-between gap-1">
+            {/* Clean Underline Sub-Tabs Header (No Card) */}
+            <div className="flex items-center border-b border-slate-200 text-xs overflow-x-auto scrollbar-none mb-1 gap-1">
               <button
                 onClick={() => setFinanceSubTab('kantong')}
-                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-extrabold transition-all text-center flex items-center justify-center gap-1 ${
+                className={`py-2 px-3 font-bold transition-all relative whitespace-nowrap text-center ${
                   financeSubTab === 'kantong'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+                    ? 'text-emerald-700 font-extrabold border-b-2 border-emerald-600 -mb-px'
+                    : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                <span>💰 3 Pos Kantong</span>
+                3 Pos Kantong
               </button>
 
               <button
                 onClick={() => setFinanceSubTab('statistik')}
-                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-extrabold transition-all text-center flex items-center justify-center gap-1 ${
+                className={`py-2 px-3 font-bold transition-all relative whitespace-nowrap text-center ${
                   financeSubTab === 'statistik'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+                    ? 'text-emerald-700 font-extrabold border-b-2 border-emerald-600 -mb-px'
+                    : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                <span>📊 Grafik & Analisis</span>
+                Grafik & Analisis
               </button>
 
               <button
                 onClick={() => setFinanceSubTab('histori')}
-                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-extrabold transition-all text-center flex items-center justify-center gap-1 ${
+                className={`py-2 px-3 font-bold transition-all relative whitespace-nowrap text-center ${
                   financeSubTab === 'histori'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+                    ? 'text-emerald-700 font-extrabold border-b-2 border-emerald-600 -mb-px'
+                    : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                <span>📑 Histori</span>
+                Histori Transaksi
+              </button>
+
+              <button
+                onClick={() => setFinanceSubTab('kalender')}
+                className={`py-2 px-3 font-bold transition-all relative whitespace-nowrap text-center ${
+                  financeSubTab === 'kalender'
+                    ? 'text-emerald-700 font-extrabold border-b-2 border-emerald-600 -mb-px'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                📅 Kalender Omset
+              </button>
+
+              <button
+                onClick={() => setFinanceSubTab('tutup_buku')}
+                className={`py-2 px-3 font-bold transition-all relative whitespace-nowrap text-center ${
+                  financeSubTab === 'tutup_buku'
+                    ? 'text-emerald-700 font-extrabold border-b-2 border-emerald-600 -mb-px'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                📚 Tutup Buku & Export
               </button>
             </div>
+
+            {/* Filter Periode Waktu (Hari Ini, Mingguan, Bulanan, Tahunan, Semua) */}
+            {(financeSubTab === 'statistik' || financeSubTab === 'histori' || financeSubTab === 'tutup_buku') && (
+              <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[11px]">
+                <span className="font-extrabold text-slate-500 mr-1 shrink-0 flex items-center gap-1">
+                  <Filter className="w-3 h-3 text-slate-400" />
+                  Periode:
+                </span>
+                {[
+                  { id: 'today', label: 'Hari Ini' },
+                  { id: 'weekly', label: '7 Hari' },
+                  { id: 'monthly', label: 'Bulan Ini' },
+                  { id: 'yearly', label: 'Tahun Ini' },
+                  { id: 'all', label: 'Semua' },
+                ].map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setFinancePeriod(p.id as import('@/types').TimePeriod)}
+                    className={`px-2.5 py-1 rounded-full font-bold whitespace-nowrap transition-all border ${
+                      financePeriod === p.id
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* SUB-TAB 1: 3 POS KANTONG */}
             {financeSubTab === 'kantong' && (
@@ -1120,22 +1235,65 @@ export default function Home() {
                   </div>
                 </div>
 
+                {/* % Growth Financial Trend Cards */}
+                {(() => {
+                  const finGrowth = StoreManager.getFinancialGrowthAnalytics(purchases, expenses, ownerDraws, financePeriod);
+                  return (
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-white border border-emerald-200 rounded-xl p-2.5 shadow-xs text-center space-y-1">
+                        <span className="text-[10px] font-bold text-slate-500 block uppercase truncate">📦 Belanja Stok</span>
+                        <h5 className="font-black text-slate-900 text-xs">{formatIDR(finGrowth.totalCurrentStock)}</h5>
+                        <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-black ${
+                          finGrowth.stockGrowth >= 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                        }`}>
+                          {finGrowth.stockGrowth >= 0 ? '+' : ''}{finGrowth.stockGrowth}%
+                        </span>
+                      </div>
+
+                      <div className="bg-white border border-amber-200 rounded-xl p-2.5 shadow-xs text-center space-y-1">
+                        <span className="text-[10px] font-bold text-slate-500 block uppercase truncate">⛽ Operasional</span>
+                        <h5 className="font-black text-slate-900 text-xs">{formatIDR(finGrowth.totalCurrentOps)}</h5>
+                        <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-black ${
+                          finGrowth.opsGrowth >= 0 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                        }`}>
+                          {finGrowth.opsGrowth >= 0 ? '+' : ''}{finGrowth.opsGrowth}%
+                        </span>
+                      </div>
+
+                      <div className="bg-white border border-blue-200 rounded-xl p-2.5 shadow-xs text-center space-y-1">
+                        <span className="text-[10px] font-bold text-slate-500 block uppercase truncate">💵 Tarik Gaji</span>
+                        <h5 className="font-black text-slate-900 text-xs">{formatIDR(finGrowth.totalCurrentGaji)}</h5>
+                        <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-black ${
+                          finGrowth.gajiGrowth >= 0 ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {finGrowth.gajiGrowth >= 0 ? '+' : ''}{finGrowth.gajiGrowth}%
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Efficiency Stat Cards */}
                 {(() => {
-                  const buckets = StoreManager.getSoloFinancialBuckets(orders, purchases, expenses, ownerDraws);
-                  const expPercent = buckets.totalOmsetLunas > 0
-                    ? ((buckets.totalPengeluaranOperasional / buckets.totalOmsetLunas) * 100).toFixed(1)
+                  const filteredOrders = StoreManager.filterByPeriod(orders, financePeriod, 'tanggal_pengiriman');
+                  const filteredExpenses = StoreManager.filterByPeriod(expenses, financePeriod, 'tanggal');
+
+                  const totalOmsetPeriod = filteredOrders.filter((o) => o.status_pembayaran === 'Lunas').reduce((sum, o) => sum + o.total_bayar, 0);
+                  const totalOpsPeriod = filteredExpenses.reduce((sum, e) => sum + e.nominal, 0);
+
+                  const expPercent = totalOmsetPeriod > 0
+                    ? ((totalOpsPeriod / totalOmsetPeriod) * 100).toFixed(1)
                     : '0';
 
-                  const bensinExpenses = expenses
+                  const bensinExpenses = filteredExpenses
                     .filter((e) => e.kategori.includes('Bensin') || e.kategori.includes('BBM'))
                     .reduce((sum, e) => sum + e.nominal, 0);
 
-                  const makanExpenses = expenses
+                  const makanExpenses = filteredExpenses
                     .filter((e) => e.kategori.includes('Makan'))
                     .reduce((sum, e) => sum + e.nominal, 0);
 
-                  const tolExpenses = expenses
+                  const tolExpenses = filteredExpenses
                     .filter((e) => e.kategori.includes('Tol') || e.kategori.includes('Parkir'))
                     .reduce((sum, e) => sum + e.nominal, 0);
 
@@ -1145,20 +1303,20 @@ export default function Home() {
                         <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs">
                           <span className="text-[10px] font-bold text-slate-500 uppercase block">Rasio Operasional</span>
                           <h4 className="text-base font-black text-amber-700">{expPercent}% Omset</h4>
-                          <p className="text-[10px] text-slate-500">Beban biaya jalan harian</p>
+                          <p className="text-[10px] text-slate-500">Beban biaya jalan periode ini</p>
                         </div>
 
                         <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs">
-                          <span className="text-[10px] font-bold text-slate-500 uppercase block">Total Belanja Stok</span>
-                          <h4 className="text-base font-black text-emerald-800">{formatIDR(buckets.totalPembelianRestock)}</h4>
-                          <p className="text-[10px] text-slate-500">Restock supplier terbayar</p>
+                          <span className="text-[10px] font-bold text-slate-500 uppercase block">Total Pengeluaran Ops</span>
+                          <h4 className="text-base font-black text-rose-700">{formatIDR(totalOpsPeriod)}</h4>
+                          <p className="text-[10px] text-slate-500">Bensin, makan & tol</p>
                         </div>
                       </div>
 
                       {/* Expense Breakdown Category Cards */}
                       <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
                         <h5 className="font-extrabold text-slate-900 text-xs border-b border-slate-100 pb-1 uppercase">
-                          Rincian Biaya Operasional Lapangan
+                          Rincian Biaya Operasional Lapangan ({financePeriod.toUpperCase()})
                         </h5>
 
                         <div className="space-y-2 text-xs">
@@ -1173,7 +1331,7 @@ export default function Home() {
                               <div
                                 className="bg-amber-500 h-full"
                                 style={{
-                                  width: `${buckets.totalPengeluaranOperasional > 0 ? (bensinExpenses / buckets.totalPengeluaranOperasional) * 100 : 0}%`,
+                                  width: `${totalOpsPeriod > 0 ? (bensinExpenses / totalOpsPeriod) * 100 : 0}%`,
                                 }}
                               ></div>
                             </div>
@@ -1190,7 +1348,7 @@ export default function Home() {
                               <div
                                 className="bg-amber-500 h-full"
                                 style={{
-                                  width: `${buckets.totalPengeluaranOperasional > 0 ? (makanExpenses / buckets.totalPengeluaranOperasional) * 100 : 0}%`,
+                                  width: `${totalOpsPeriod > 0 ? (makanExpenses / totalOpsPeriod) * 100 : 0}%`,
                                 }}
                               ></div>
                             </div>
@@ -1207,7 +1365,7 @@ export default function Home() {
                               <div
                                 className="bg-amber-500 h-full"
                                 style={{
-                                  width: `${buckets.totalPengeluaranOperasional > 0 ? (tolExpenses / buckets.totalPengeluaranOperasional) * 100 : 0}%`,
+                                  width: `${totalOpsPeriod > 0 ? (tolExpenses / totalOpsPeriod) * 100 : 0}%`,
                                 }}
                               ></div>
                             </div>
@@ -1223,55 +1381,301 @@ export default function Home() {
             {/* SUB-TAB 3: HISTORI TRANSAKSI */}
             {financeSubTab === 'histori' && (
               <div className="space-y-2.5 animate-fade-in">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {/* Histori Operasional */}
-                  <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
-                    <h4 className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5 border-b border-slate-200 pb-1.5 uppercase">
-                      <Fuel className="w-3.5 h-3.5 text-amber-600" />
-                      Histori Operasional ({expenses.length})
-                    </h4>
+                {(() => {
+                  const filteredExpenses = StoreManager.filterByPeriod(expenses, financePeriod, 'tanggal');
+                  const filteredDraws = StoreManager.filterByPeriod(ownerDraws, financePeriod, 'tanggal');
+                  return (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {/* Histori Operasional */}
+                      <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
+                        <h4 className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5 border-b border-slate-200 pb-1.5 uppercase">
+                          <Fuel className="w-3.5 h-3.5 text-amber-600" />
+                          Histori Operasional ({filteredExpenses.length})
+                        </h4>
 
-                    {expenses.length === 0 ? (
-                      <p className="text-center py-6 text-[11px] text-slate-400 font-bold">Belum ada pengeluaran operasional</p>
-                    ) : (
-                      <div className="divide-y divide-slate-100 max-h-64 overflow-y-auto">
-                        {expenses.map((e) => (
-                          <div key={e.id} className="py-2 flex items-center justify-between text-xs">
-                            <div>
-                              <p className="font-bold text-slate-900">{e.kategori}</p>
-                              <p className="text-[10px] text-slate-500">{e.keterangan || '-'} ({e.tanggal})</p>
-                            </div>
-                            <span className="font-black text-amber-700">{formatIDR(e.nominal)}</span>
+                        {filteredExpenses.length === 0 ? (
+                          <p className="text-center py-6 text-[11px] text-slate-400 font-bold">Belum ada pengeluaran operasional</p>
+                        ) : (
+                          <div className="divide-y divide-slate-100 max-h-64 overflow-y-auto">
+                            {filteredExpenses.map((e) => (
+                              <div key={e.id} className="py-2 flex items-center justify-between text-xs">
+                                <div>
+                                  <p className="font-bold text-slate-900">{e.kategori}</p>
+                                  <p className="text-[10px] text-slate-500">{e.keterangan || '-'} ({e.tanggal})</p>
+                                </div>
+                                <span className="font-black text-amber-700">{formatIDR(e.nominal)}</span>
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        )}
                       </div>
-                    )}
-                  </div>
 
-                  {/* Histori Penarikan Gaji */}
-                  <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
-                    <h4 className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5 border-b border-slate-200 pb-1.5 uppercase">
-                      <Wallet className="w-3.5 h-3.5 text-blue-600" />
-                      Histori Tarik Gaji Saya ({ownerDraws.length})
-                    </h4>
+                      {/* Histori Penarikan Gaji */}
+                      <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
+                        <h4 className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5 border-b border-slate-200 pb-1.5 uppercase">
+                          <Wallet className="w-3.5 h-3.5 text-blue-600" />
+                          Histori Tarik Gaji Saya ({filteredDraws.length})
+                        </h4>
 
-                    {ownerDraws.length === 0 ? (
-                      <p className="text-center py-6 text-[11px] text-slate-400 font-bold">Belum ada penarikan gaji pribadi</p>
-                    ) : (
-                      <div className="divide-y divide-slate-100 max-h-64 overflow-y-auto">
-                        {ownerDraws.map((d) => (
-                          <div key={d.id} className="py-2 flex items-center justify-between text-xs">
-                            <div>
-                              <p className="font-bold text-slate-900">{d.catatan || 'Tarik Gaji Owner'}</p>
-                              <p className="text-[10px] text-slate-500">{d.tanggal}</p>
-                            </div>
-                            <span className="font-black text-blue-800">{formatIDR(d.nominal)}</span>
+                        {filteredDraws.length === 0 ? (
+                          <p className="text-center py-6 text-[11px] text-slate-400 font-bold">Belum ada penarikan gaji pribadi</p>
+                        ) : (
+                          <div className="divide-y divide-slate-100 max-h-64 overflow-y-auto">
+                            {filteredDraws.map((d) => (
+                              <div key={d.id} className="py-2 flex items-center justify-between text-xs">
+                                <div>
+                                  <p className="font-bold text-slate-900">{d.catatan || 'Tarik Gaji Owner'}</p>
+                                  <p className="text-[10px] text-slate-500">{d.tanggal}</p>
+                                </div>
+                                <span className="font-black text-blue-800">{formatIDR(d.nominal)}</span>
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        )}
                       </div>
-                    )}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* SUB-TAB 4: KALENDER OMSET */}
+            {financeSubTab === 'kalender' && (
+              <div className="space-y-3 animate-fade-in">
+                {/* Month Navigator Header */}
+                <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs flex items-center justify-between">
+                  <button
+                    onClick={() => {
+                      const prev = new Date(calendarMonth);
+                      prev.setMonth(prev.getMonth() - 1);
+                      setCalendarMonth(prev);
+                    }}
+                    className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <div className="text-center">
+                    <h4 className="font-extrabold text-slate-900 text-sm">
+                      {calendarMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                    </h4>
+                    <p className="text-[10px] text-slate-500">Klik tanggal untuk rincian nota omset hari tersebut</p>
                   </div>
+                  <button
+                    onClick={() => {
+                      const next = new Date(calendarMonth);
+                      next.setMonth(next.getMonth() + 1);
+                      setCalendarMonth(next);
+                    }}
+                    className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
                 </div>
+
+                {/* Calendar 7-Column Grid */}
+                <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
+                  {/* Days Header */}
+                  <div className="grid grid-cols-7 gap-1 text-center font-extrabold text-[11px] text-slate-500 border-b border-slate-100 pb-1.5">
+                    <span>Min</span>
+                    <span>Sen</span>
+                    <span>Sel</span>
+                    <span>Rab</span>
+                    <span>Kam</span>
+                    <span>Jum</span>
+                    <span>Sab</span>
+                  </div>
+
+                  {/* Days Cells */}
+                  {(() => {
+                    const year = calendarMonth.getFullYear();
+                    const month = calendarMonth.getMonth();
+                    const firstDayIndex = new Date(year, month, 1).getDay();
+                    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+                    const cells = [];
+                    for (let i = 0; i < firstDayIndex; i++) {
+                      cells.push(<div key={`empty-${i}`} className="h-14 bg-slate-50/40 rounded-lg border border-transparent"></div>);
+                    }
+
+                    for (let day = 1; day <= daysInMonth; day++) {
+                      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                      const dayOrders = orders.filter(
+                        (o) => (o.tanggal_pengiriman === dateStr || (o.created_at && o.created_at.startsWith(dateStr))) && o.status_pembayaran === 'Lunas'
+                      );
+                      const totalOmsetDay = dayOrders.reduce((sum, o) => sum + o.total_bayar, 0);
+                      const isSelected = selectedCalendarDate === dateStr;
+
+                      cells.push(
+                        <button
+                          key={dateStr}
+                          onClick={() => setSelectedCalendarDate(dateStr)}
+                          className={`h-14 p-1 rounded-lg border text-left flex flex-col justify-between transition-all ${
+                            isSelected
+                              ? 'border-emerald-600 ring-2 ring-emerald-400 bg-emerald-50'
+                              : totalOmsetDay > 0
+                              ? 'border-emerald-200 bg-emerald-50/60 hover:border-emerald-400'
+                              : 'border-slate-100 bg-white hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className={`text-[10px] font-black ${totalOmsetDay > 0 ? 'text-emerald-900' : 'text-slate-600'}`}>
+                            {day}
+                          </span>
+
+                          {totalOmsetDay > 0 ? (
+                            <span className="text-[9px] font-black text-emerald-800 bg-emerald-200/80 px-1 py-0.5 rounded leading-tight truncate">
+                              {totalOmsetDay >= 1000000 ? `${(totalOmsetDay / 1000000).toFixed(1)}jt` : `${(totalOmsetDay / 1000).toFixed(0)}k`}
+                            </span>
+                          ) : (
+                            <span className="text-[9px] text-slate-300 font-medium">-</span>
+                          )}
+                        </button>
+                      );
+                    }
+
+                    return <div className="grid grid-cols-7 gap-1">{cells}</div>;
+                  })()}
+                </div>
+
+                {/* Selected Date Orders Box */}
+                {selectedCalendarDate && (
+                  <div className="bg-white border border-emerald-300 rounded-xl p-3 shadow-md space-y-2 animate-fade-in">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
+                      <h4 className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5">
+                        <Calendar className="w-4 h-4 text-emerald-600" />
+                        Rincian Omset Tanggal {selectedCalendarDate}
+                      </h4>
+                      <button
+                        onClick={() => setSelectedCalendarDate(null)}
+                        className="text-[10px] text-slate-400 hover:text-slate-700 font-bold"
+                      >
+                        Tutup
+                      </button>
+                    </div>
+
+                    {(() => {
+                      const dayOrders = orders.filter(
+                        (o) => o.tanggal_pengiriman === selectedCalendarDate || (o.created_at && o.created_at.startsWith(selectedCalendarDate))
+                      );
+                      if (dayOrders.length === 0) {
+                        return <p className="text-center py-4 text-xs text-slate-400 font-bold">Tidak ada transaksi pada tanggal ini</p>;
+                      }
+                      return (
+                        <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
+                          {dayOrders.map((o) => (
+                            <div key={o.id} className="py-2 flex items-center justify-between text-xs">
+                              <div>
+                                <p className="font-extrabold text-slate-900">{o.toko?.nama_toko || 'Toko'}</p>
+                                <p className="text-[10px] text-slate-500">
+                                  {o.no_nota} • {o.jenis_pembayaran} ({o.status_pembayaran})
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <span className="font-black text-emerald-700 block">{formatIDR(o.total_bayar)}</span>
+                                <button
+                                  onClick={() => setSelectedNota(o)}
+                                  className="text-[10px] text-emerald-600 hover:underline font-bold"
+                                >
+                                  Lihat Nota
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* SUB-TAB 5: TUTUP BUKU & EXPORT */}
+            {financeSubTab === 'tutup_buku' && (
+              <div className="space-y-3 animate-fade-in">
+                {/* Export & Action Buttons */}
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={handleExportExcel}
+                    className="p-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-extrabold text-xs flex flex-col items-center justify-center gap-1 shadow-xs active:scale-95 transition-all"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Export Excel</span>
+                  </button>
+
+                  <button
+                    onClick={() => window.print()}
+                    className="p-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-extrabold text-xs flex flex-col items-center justify-center gap-1 shadow-xs active:scale-95 transition-all"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>Cetak / PDF</span>
+                  </button>
+
+                  <button
+                    onClick={handleShareWhatsApp}
+                    className="p-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-extrabold text-xs flex flex-col items-center justify-center gap-1 shadow-xs active:scale-95 transition-all"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    <span>Kirim WA</span>
+                  </button>
+                </div>
+
+                {/* Rekap Tutup Buku Sheet */}
+                {(() => {
+                  const filteredOrders = StoreManager.filterByPeriod(orders, financePeriod, 'tanggal_pengiriman');
+                  const filteredExpenses = StoreManager.filterByPeriod(expenses, financePeriod, 'tanggal');
+                  const filteredPurchases = StoreManager.filterByPeriod(purchases, financePeriod, 'tanggal_beli');
+                  const filteredDraws = StoreManager.filterByPeriod(ownerDraws, financePeriod, 'tanggal');
+
+                  const totalOmsetLunasPeriod = filteredOrders
+                    .filter((o) => o.status_pembayaran === 'Lunas')
+                    .reduce((sum, o) => sum + o.total_bayar, 0);
+
+                  const totalRestockPeriod = filteredPurchases.reduce((sum, p) => sum + p.total_belanja, 0);
+                  const totalOpsPeriod = filteredExpenses.reduce((sum, e) => sum + e.nominal, 0);
+                  const totalGajiPeriod = filteredDraws.reduce((sum, d) => sum + d.nominal, 0);
+
+                  const totalPengeluaranTotal = totalRestockPeriod + totalOpsPeriod + totalGajiPeriod;
+                  const sisaSaldoPeriod = totalOmsetLunasPeriod - totalPengeluaranTotal;
+
+                  return (
+                    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs space-y-3">
+                      <div className="border-b border-slate-200 pb-2">
+                        <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                          Rekap Laporan Tutup Buku ({financePeriod.toUpperCase()})
+                        </span>
+                        <h3 className="text-lg font-black text-slate-900">{storeSettings.nama_usaha}</h3>
+                      </div>
+
+                      <div className="space-y-2 text-xs">
+                        <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                          <span className="font-bold text-slate-700">1. Total Omset Penjualan Lunas</span>
+                          <span className="font-black text-emerald-700">{formatIDR(totalOmsetLunasPeriod)}</span>
+                        </div>
+
+                        <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                          <span className="font-bold text-slate-700">2. Belanja Restock Supplier</span>
+                          <span className="font-black text-rose-600">- {formatIDR(totalRestockPeriod)}</span>
+                        </div>
+
+                        <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                          <span className="font-bold text-slate-700">3. Biaya Operasional Lapangan</span>
+                          <span className="font-black text-amber-700">- {formatIDR(totalOpsPeriod)}</span>
+                        </div>
+
+                        <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                          <span className="font-bold text-slate-700">4. Penarikan Gaji Saya</span>
+                          <span className="font-black text-blue-700">- {formatIDR(totalGajiPeriod)}</span>
+                        </div>
+
+                        <div className="flex justify-between items-center pt-2 text-sm">
+                          <span className="font-black text-slate-900 uppercase">Sisa Saldo Kas Usaha:</span>
+                          <span className={`font-black text-base ${sisaSaldoPeriod >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                            {formatIDR(sisaSaldoPeriod)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>
@@ -1280,74 +1684,222 @@ export default function Home() {
         {/* TAB 6: DASHBOARD UTAMA */}
         {activeTab === 'dashboard' && (
           <div className="space-y-3">
-            {/* Top Stat Banner */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs">
-                <span className="text-[10px] font-bold text-slate-500 block">Total Omset</span>
-                <h3 className="text-base font-black text-emerald-700">
-                  {formatIDR(orders.reduce((sum, o) => sum + o.total_bayar, 0))}
-                </h3>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs">
-                <span className="text-[10px] font-bold text-slate-500 block">Piutang Tempo</span>
-                <h3 className="text-base font-black text-rose-600">
-                  {formatIDR(
-                    orders
-                      .filter((o) => o.jenis_pembayaran === 'Tempo' && o.status_pembayaran === 'Belum Lunas')
-                      .reduce((sum, o) => sum + o.total_bayar, 0)
-                  )}
-                </h3>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs">
-                <span className="text-[10px] font-bold text-slate-500 block">Jadwal Hari Ini</span>
-                <h3 className="text-base font-black text-slate-900">
-                  {orders.filter((o) => o.tanggal_pengiriman === todayStr).length} Toko
-                </h3>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs">
-                <span className="text-[10px] font-bold text-slate-500 block">Total Toko</span>
-                <h3 className="text-base font-black text-slate-900">{tokos.length} Toko</h3>
-              </div>
-            </div>
-
-            {/* Recent Orders List */}
-            <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
-              <h3 className="font-extrabold text-xs text-slate-900 flex items-center gap-1.5 border-b border-slate-200 pb-1.5">
-                <RefreshCw className="w-3.5 h-3.5 text-emerald-700" />
-                Riwayat Transaksi Terbaru
-              </h3>
-
-              <div className="divide-y divide-slate-200">
-                {orders.slice(0, 8).map((o) => {
-                  const toko = tokos.find((t) => t.id === o.toko_id) || o.toko;
-                  return (
-                    <div key={o.id} className="py-2 flex items-center justify-between text-xs">
-                      <div>
-                        <p className="font-extrabold text-slate-900">{toko?.nama_toko || 'Toko'}</p>
-                        <p className="text-[11px] text-slate-500">
-                          {o.no_nota} • {o.jenis_pembayaran} ({o.status_pembayaran})
-                        </p>
-                      </div>
-                      <div className="text-right space-y-0.5">
-                        <p className="font-black text-emerald-800 text-xs">
-                          {formatIDR(o.total_bayar)}
-                        </p>
-                        <button
-                          onClick={() => setSelectedNota(o)}
-                          className="text-[10px] font-bold text-emerald-700 hover:underline flex items-center gap-1 ml-auto"
-                        >
-                          <FileText className="w-3 h-3" />
-                          <span>Nota</span>
-                        </button>
+            {(() => {
+              const growth = StoreManager.getOmsetGrowth(orders);
+              const topProducts = StoreManager.getTopProductsAnalytics(orders);
+              return (
+                <div className="space-y-3">
+                  {/* Growth Banner */}
+                  <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-xl p-3.5 shadow-md flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">
+                        Pertumbuhan Omset (Bulan Ini vs Lalu)
+                      </span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <h3 className="text-xl font-black text-white">{formatIDR(growth.currentOmset)}</h3>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-black flex items-center gap-0.5 ${
+                          growth.growthPercent >= 0
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                            : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                        }`}>
+                          {growth.growthPercent >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                          <span>{growth.growthPercent >= 0 ? '+' : ''}{growth.growthPercent}%</span>
+                        </span>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
+                  </div>
+
+                  {/* Top Stat Banner */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs">
+                      <span className="text-[10px] font-bold text-slate-500 block">Total Omset</span>
+                      <h3 className="text-base font-black text-emerald-700">
+                        {formatIDR(orders.reduce((sum, o) => sum + o.total_bayar, 0))}
+                      </h3>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs">
+                      <span className="text-[10px] font-bold text-slate-500 block">Piutang Tempo</span>
+                      <h3 className="text-base font-black text-rose-600">
+                        {formatIDR(
+                          orders
+                            .filter((o) => o.jenis_pembayaran === 'Tempo' && o.status_pembayaran === 'Belum Lunas')
+                            .reduce((sum, o) => sum + o.total_bayar, 0)
+                        )}
+                      </h3>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs">
+                      <span className="text-[10px] font-bold text-slate-500 block">Jadwal Hari Ini</span>
+                      <h3 className="text-base font-black text-slate-900">
+                        {orders.filter((o) => o.tanggal_pengiriman === todayStr).length} Toko
+                      </h3>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs">
+                      <span className="text-[10px] font-bold text-slate-500 block">Total Toko</span>
+                      <h3 className="text-base font-black text-slate-900">{tokos.length} Toko</h3>
+                    </div>
+                  </div>
+
+                  {/* Visual Bar Chart (Omset 7 Hari Terakhir) */}
+                  {(() => {
+                    const chartData = StoreManager.getChartDailyData(orders);
+                    const maxOmset = Math.max(...chartData.map((d) => d.omset), 1);
+                    return (
+                      <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
+                        <h3 className="font-extrabold text-xs text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1.5 uppercase">
+                          <span className="flex items-center gap-1.5">
+                            <TrendingUp className="w-4 h-4 text-emerald-600" />
+                            Grafik Penjualan 7 Hari Terakhir
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-bold">Lunas</span>
+                        </h3>
+
+                        <div className="pt-4 pb-1">
+                          <div className="h-32 flex items-end justify-between gap-1.5 px-1">
+                            {chartData.map((cd) => {
+                              const heightPercent = Math.max(8, Math.round((cd.omset / maxOmset) * 100));
+                              return (
+                                <div key={cd.dateStr} className="flex-1 flex flex-col items-center gap-1 h-full justify-end group">
+                                  <div className="text-[9px] font-black text-slate-700 bg-slate-100 px-1 py-0.5 rounded opacity-80 group-hover:opacity-100 whitespace-nowrap">
+                                    {cd.omset >= 1000000 ? `${(cd.omset / 1000000).toFixed(1)}jt` : cd.omset > 0 ? `${(cd.omset / 1000).toFixed(0)}k` : '0'}
+                                  </div>
+                                  <div
+                                    className={`w-full rounded-t-md transition-all ${
+                                      cd.omset > 0 ? 'bg-emerald-600 group-hover:bg-emerald-500 shadow-xs' : 'bg-slate-100'
+                                    }`}
+                                    style={{ height: `${heightPercent}%` }}
+                                  ></div>
+                                  <span className="text-[9px] font-bold text-slate-500 whitespace-nowrap mt-1">
+                                    {cd.label}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Top Products Rank Card */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
+                    <h3 className="font-extrabold text-xs text-slate-900 flex items-center gap-1.5 border-b border-slate-200 pb-1.5 uppercase">
+                      <Award className="w-4 h-4 text-amber-600" />
+                      Produk Paling Laris & Tren Penjualan
+                    </h3>
+
+                    {topProducts.length === 0 ? (
+                      <p className="text-center py-4 text-xs text-slate-400 font-bold">Belum ada transaksi penjualan</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {topProducts.slice(0, 5).map((tp, idx) => {
+                          const maxSales = topProducts[0].totalSales || 1;
+                          const percent = Math.round((tp.totalSales / maxSales) * 100);
+                          return (
+                            <div key={tp.name} className="space-y-1 text-xs">
+                              <div className="flex justify-between items-center">
+                                <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                                  <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black flex items-center justify-center">
+                                    #{idx + 1}
+                                  </span>
+                                  {tp.name}
+                                </span>
+                                <span className="font-black text-slate-900">
+                                  {tp.totalQty} terjual • {formatIDR(tp.totalSales)}
+                                </span>
+                              </div>
+                              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                <div className="bg-emerald-600 h-full rounded-full" style={{ width: `${percent}%` }}></div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Filtered Recent Orders List with Rekap Banner */}
+            {(() => {
+              const filteredOrders = StoreManager.filterByPeriod(orders, dashboardOrdersPeriod, 'tanggal_pengiriman');
+              const totalFilteredOmset = filteredOrders.reduce((sum, o) => sum + o.total_bayar, 0);
+
+              return (
+                <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2">
+                    <h3 className="font-extrabold text-xs text-slate-900 flex items-center gap-1.5 uppercase">
+                      <RefreshCw className="w-3.5 h-3.5 text-emerald-700" />
+                      Riwayat Transaksi Nota ({filteredOrders.length})
+                    </h3>
+
+                    {/* Filter Period Pills */}
+                    <div className="flex items-center gap-1 overflow-x-auto text-[10px]">
+                      {[
+                        { id: 'today', label: 'Hari Ini' },
+                        { id: 'weekly', label: '7 Hari' },
+                        { id: 'monthly', label: 'Bulan Ini' },
+                        { id: 'all', label: 'Semua' },
+                      ].map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => setDashboardOrdersPeriod(p.id as import('@/types').TimePeriod)}
+                          className={`px-2 py-0.5 rounded-full font-bold whitespace-nowrap border transition-all ${
+                            dashboardOrdersPeriod === p.id
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Rekap Banner */}
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1.5 flex justify-between items-center text-xs">
+                    <span className="font-bold text-emerald-900">Rekap Omset Filtered ({dashboardOrdersPeriod.toUpperCase()}):</span>
+                    <span className="font-black text-emerald-700 text-sm">{formatIDR(totalFilteredOmset)}</span>
+                  </div>
+
+                  {/* Transaksi List */}
+                  {filteredOrders.length === 0 ? (
+                    <p className="text-center py-6 text-xs text-slate-400 font-bold">Tidak ada transaksi nota pada periode ini</p>
+                  ) : (
+                    <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                      {filteredOrders.map((o) => {
+                        const toko = tokos.find((t) => t.id === o.toko_id) || o.toko;
+                        return (
+                          <div key={o.id} className="py-2 flex items-center justify-between text-xs">
+                            <div>
+                              <p className="font-extrabold text-slate-900">{toko?.nama_toko || 'Toko'}</p>
+                              <p className="text-[11px] text-slate-500">
+                                {o.no_nota} • {o.jenis_pembayaran} ({o.status_pembayaran})
+                              </p>
+                            </div>
+                            <div className="text-right space-y-0.5">
+                              <p className="font-black text-emerald-800 text-xs">
+                                {formatIDR(o.total_bayar)}
+                              </p>
+                              <button
+                                onClick={() => setSelectedNota(o)}
+                                className="text-[10px] font-bold text-emerald-700 hover:underline flex items-center gap-1 ml-auto"
+                              >
+                                <FileText className="w-3 h-3" />
+                                <span>Nota</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
       </main>

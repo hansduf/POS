@@ -970,4 +970,155 @@ export class StoreManager {
       totalPembelianRestock,
     };
   }
+
+  // --- TIME PERIOD FILTER HELPER ---
+  static filterByPeriod<T>(items: T[], period: import('@/types').TimePeriod, dateField: keyof T): T[] {
+    if (period === 'all') return items;
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+
+    return items.filter((item) => {
+      const val = String(item[dateField] || '');
+      if (!val) return false;
+      const itemDateStr = val.substring(0, 10);
+      const itemDate = new Date(itemDateStr);
+
+      if (period === 'today') {
+        return itemDateStr === todayStr;
+      }
+
+      if (period === 'weekly') {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(now.getDate() - 7);
+        return itemDate >= sevenDaysAgo && itemDate <= now;
+      }
+
+      if (period === 'monthly') {
+        return itemDate.getMonth() === now.getMonth() && itemDate.getFullYear() === now.getFullYear();
+      }
+
+      if (period === 'yearly') {
+        return itemDate.getFullYear() === now.getFullYear();
+      }
+
+      return true;
+    });
+  }
+
+  // --- DASHBOARD ANALYTICS & GROWTH HELPER ---
+  static getOmsetGrowth(orders: Order[]) {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const lastMonthDate = new Date(currentYear, currentMonth - 1, 1);
+    const lastMonth = lastMonthDate.getMonth();
+    const lastMonthYear = lastMonthDate.getFullYear();
+
+    let currentOmset = 0;
+    let previousOmset = 0;
+
+    orders.forEach((o) => {
+      const val = o.tanggal_pengiriman || o.created_at;
+      if (!val) return;
+      const d = new Date(val);
+      if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+        currentOmset += o.total_bayar;
+      } else if (d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear) {
+        previousOmset += o.total_bayar;
+      }
+    });
+
+    const growthPercent = previousOmset > 0
+      ? Number((((currentOmset - previousOmset) / previousOmset) * 100).toFixed(1))
+      : currentOmset > 0 ? 100 : 0;
+
+    return { currentOmset, previousOmset, growthPercent };
+  }
+
+  static getTopProductsAnalytics(orders: Order[]) {
+    const map = new Map<string, { name: string; totalQty: number; totalSales: number }>();
+
+    orders.forEach((o) => {
+      if (o.items && Array.isArray(o.items)) {
+        o.items.forEach((item) => {
+          const name = item.product?.nama_produk || 'Produk';
+          const existing = map.get(name) || { name, totalQty: 0, totalSales: 0 };
+          existing.totalQty += item.jumlah;
+          existing.totalSales += item.subtotal;
+          map.set(name, existing);
+        });
+      }
+    });
+
+    return Array.from(map.values()).sort((a, b) => b.totalSales - a.totalSales);
+  }
+
+  static getFinancialGrowthAnalytics(
+    purchases: import('@/types').Purchase[],
+    expenses: import('@/types').Expense[],
+    ownerDraws: import('@/types').OwnerDraw[],
+    period: import('@/types').TimePeriod
+  ) {
+    const currentExpenses = this.filterByPeriod(expenses, period, 'tanggal');
+    const currentPurchases = this.filterByPeriod(purchases, period, 'tanggal_beli');
+    const currentDraws = this.filterByPeriod(ownerDraws, period, 'tanggal');
+
+    const totalCurrentOps = currentExpenses.reduce((sum, e) => sum + e.nominal, 0);
+    const totalCurrentStock = currentPurchases.reduce((sum, p) => sum + p.total_belanja, 0);
+    const totalCurrentGaji = currentDraws.reduce((sum, d) => sum + d.nominal, 0);
+
+    const allOps = expenses.reduce((sum, e) => sum + e.nominal, 0);
+    const prevOps = Math.max(0, allOps - totalCurrentOps);
+    const opsGrowth = prevOps > 0 ? Number((((totalCurrentOps - prevOps) / prevOps) * 100).toFixed(1)) : totalCurrentOps > 0 ? 100 : 0;
+
+    const allStock = purchases.reduce((sum, p) => sum + p.total_belanja, 0);
+    const prevStock = Math.max(0, allStock - totalCurrentStock);
+    const stockGrowth = prevStock > 0 ? Number((((totalCurrentStock - prevStock) / prevStock) * 100).toFixed(1)) : totalCurrentStock > 0 ? 100 : 0;
+
+    const allGaji = ownerDraws.reduce((sum, d) => sum + d.nominal, 0);
+    const prevGaji = Math.max(0, allGaji - totalCurrentGaji);
+    const gajiGrowth = prevGaji > 0 ? Number((((totalCurrentGaji - prevGaji) / prevGaji) * 100).toFixed(1)) : totalCurrentGaji > 0 ? 100 : 0;
+
+    return {
+      totalCurrentOps,
+      opsGrowth,
+      totalCurrentStock,
+      stockGrowth,
+      totalCurrentGaji,
+      gajiGrowth,
+    };
+  }
+
+  static getChartDailyData(orders: Order[]) {
+    const map = new Map<string, number>();
+    const last7Days: string[] = [];
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      last7Days.push(dateStr);
+      map.set(dateStr, 0);
+    }
+
+    orders.forEach((o) => {
+      if (o.status_pembayaran === 'Lunas') {
+        const val = o.tanggal_pengiriman || (o.created_at ? o.created_at.substring(0, 10) : '');
+        if (map.has(val)) {
+          map.set(val, (map.get(val) || 0) + o.total_bayar);
+        }
+      }
+    });
+
+    return last7Days.map((dateStr) => {
+      const d = new Date(dateStr);
+      const label = d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric' });
+      return {
+        dateStr,
+        label,
+        omset: map.get(dateStr) || 0,
+      };
+    });
+  }
 }

@@ -186,11 +186,13 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
                 Harga Beli Modal (Rp) *
               </label>
               <input
-                type="number"
-                min="0"
-                step="any"
-                value={hargaModalBeli}
-                onChange={(e) => setHargaModalBeli(Number(e.target.value))}
+                type="text"
+                value={hargaModalBeli > 0 ? hargaModalBeli.toLocaleString('id-ID') : ''}
+                onChange={(e) => {
+                  const clean = e.target.value.replace(/\D/g, '');
+                  setHargaModalBeli(clean ? parseInt(clean, 10) : 0);
+                }}
+                placeholder="0"
                 className="w-full px-3 py-1.5 bg-white border border-emerald-400 rounded-xl text-slate-900 font-black"
                 required
               />
