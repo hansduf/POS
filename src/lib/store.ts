@@ -10,6 +10,10 @@ const STORAGE_KEYS = {
   PURCHASES: 'pos_canvass_purchases_cache',
   EXPENSES: 'pos_canvass_expenses_cache',
   OWNER_DRAWS: 'pos_canvass_owner_draws_cache',
+  QUEUE_ORDERS: 'pos_canvass_queue_orders',
+  QUEUE_EXPENSES: 'pos_canvass_queue_expenses',
+  QUEUE_DRAWS: 'pos_canvass_queue_draws',
+  QUEUE_PURCHASES: 'pos_canvass_queue_purchases',
 };
 
 export const DEFAULT_SETTINGS: StoreSettings = {
@@ -368,7 +372,183 @@ export class StoreManager {
   static getOrdersCache(): Order[] {
     if (typeof window === 'undefined') return [];
     const stored = localStorage.getItem(STORAGE_KEYS.ORDERS);
-    return stored ? JSON.parse(stored) : [];
+    const cachedOrders: Order[] = stored ? JSON.parse(stored) : [];
+
+    const queueStr = localStorage.getItem(STORAGE_KEYS.QUEUE_ORDERS);
+    if (queueStr) {
+      try {
+        const queue: Order[] = JSON.parse(queueStr);
+        const existingIds = new Set(cachedOrders.map((o) => o.id));
+        queue.forEach((q) => {
+          if (!existingIds.has(q.id)) {
+            cachedOrders.unshift(q);
+          }
+        });
+      } catch (err) {
+        console.warn('Queue orders parse warning:', err);
+      }
+    }
+    return cachedOrders;
+  }
+
+  static async syncOfflineQueue(): Promise<{ syncedOrders: number; syncedExpenses: number; syncedDraws: number; syncedPurchases: number }> {
+    if (typeof window === 'undefined' || !navigator.onLine || !isSupabaseConfigured || !supabase) {
+      return { syncedOrders: 0, syncedExpenses: 0, syncedDraws: 0, syncedPurchases: 0 };
+    }
+
+    let syncedOrders = 0;
+    let syncedExpenses = 0;
+    let syncedDraws = 0;
+    let syncedPurchases = 0;
+
+    // 1. Sync Orders Queue
+    const ordersQueueStr = localStorage.getItem(STORAGE_KEYS.QUEUE_ORDERS);
+    if (ordersQueueStr) {
+      try {
+        const ordersQueue: Order[] = JSON.parse(ordersQueueStr);
+        const remainingOrders: Order[] = [];
+
+        for (const ord of ordersQueue) {
+          try {
+            const itemsPayload = (ord.items || []).map((i) => ({
+              product_id: i.product_id,
+              jumlah: i.jumlah,
+              harga_deal: i.harga_deal,
+              subtotal: i.subtotal,
+            }));
+
+            const { data: rpcId, error: rpcErr } = await supabase.rpc('create_order_rpc', {
+              p_no_nota: ord.no_nota,
+              p_toko_id: ord.toko_id,
+              p_total_bayar: ord.total_bayar,
+              p_jenis_pembayaran: ord.jenis_pembayaran,
+              p_status_pembayaran: ord.status_pembayaran,
+              p_tanggal_pengiriman: ord.tanggal_pengiriman,
+              p_status_pengiriman: ord.status_pengiriman,
+              p_catatan_pengiriman: ord.catatan_pengiriman || '',
+              p_items: itemsPayload,
+            });
+
+            if (!rpcErr && rpcId) {
+              syncedOrders++;
+            } else {
+              const { data: orderRes, error: insErr } = await supabase
+                .from('orders')
+                .insert([{
+                  no_nota: ord.no_nota,
+                  toko_id: ord.toko_id,
+                  total_bayar: ord.total_bayar,
+                  jenis_pembayaran: ord.jenis_pembayaran,
+                  status_pembayaran: ord.status_pembayaran,
+                  tanggal_pengiriman: ord.tanggal_pengiriman,
+                  status_pengiriman: ord.status_pengiriman,
+                  catatan_pengiriman: ord.catatan_pengiriman,
+                }])
+                .select()
+                .single();
+
+              if (!insErr && orderRes) {
+                if (ord.items && ord.items.length > 0) {
+                  const directItems = ord.items.map((i) => ({
+                    order_id: orderRes.id,
+                    product_id: i.product_id,
+                    jumlah: i.jumlah,
+                    harga_deal: i.harga_deal,
+                    subtotal: i.subtotal,
+                  }));
+                  await supabase.from('order_items').insert(directItems);
+                }
+                syncedOrders++;
+              } else {
+                remainingOrders.push(ord);
+              }
+            }
+          } catch (err) {
+            console.warn('Error syncing order item:', err);
+            remainingOrders.push(ord);
+          }
+        }
+
+        if (remainingOrders.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.QUEUE_ORDERS, JSON.stringify(remainingOrders));
+        } else {
+          localStorage.removeItem(STORAGE_KEYS.QUEUE_ORDERS);
+        }
+      } catch (err) {
+        console.warn('Queue orders parse error:', err);
+      }
+    }
+
+    // 2. Sync Expenses Queue
+    const expQueueStr = localStorage.getItem(STORAGE_KEYS.QUEUE_EXPENSES);
+    if (expQueueStr) {
+      try {
+        const expQueue = JSON.parse(expQueueStr);
+        const remainingExp = [];
+        for (const exp of expQueue) {
+          const { error } = await supabase.from('expenses').insert([{
+            kategori: exp.kategori,
+            nominal: exp.nominal,
+            keterangan: exp.keterangan,
+            tanggal: exp.tanggal,
+          }]);
+          if (!error) syncedExpenses++;
+          else remainingExp.push(exp);
+        }
+        if (remainingExp.length > 0) localStorage.setItem(STORAGE_KEYS.QUEUE_EXPENSES, JSON.stringify(remainingExp));
+        else localStorage.removeItem(STORAGE_KEYS.QUEUE_EXPENSES);
+      } catch (err) {
+        console.warn('Queue expenses parse error:', err);
+      }
+    }
+
+    // 3. Sync Owner Draws Queue
+    const drawQueueStr = localStorage.getItem(STORAGE_KEYS.QUEUE_DRAWS);
+    if (drawQueueStr) {
+      try {
+        const drawQueue = JSON.parse(drawQueueStr);
+        const remainingDraws = [];
+        for (const draw of drawQueue) {
+          const { error } = await supabase.from('owner_draws').insert([{
+            nominal: draw.nominal,
+            catatan: draw.catatan,
+            tanggal: draw.tanggal,
+          }]);
+          if (!error) syncedDraws++;
+          else remainingDraws.push(draw);
+        }
+        if (remainingDraws.length > 0) localStorage.setItem(STORAGE_KEYS.QUEUE_DRAWS, JSON.stringify(remainingDraws));
+        else localStorage.removeItem(STORAGE_KEYS.QUEUE_DRAWS);
+      } catch (err) {
+        console.warn('Queue draws parse error:', err);
+      }
+    }
+
+    // 4. Sync Purchases Queue
+    const purchQueueStr = localStorage.getItem(STORAGE_KEYS.QUEUE_PURCHASES);
+    if (purchQueueStr) {
+      try {
+        const purchQueue = JSON.parse(purchQueueStr);
+        const remainingPurch = [];
+        for (const purch of purchQueue) {
+          const { error } = await supabase.rpc('restock_product_rpc', {
+            p_product_id: purch.product_id,
+            p_supplier_nama: purch.supplier_nama || 'Supplier Utama',
+            p_jumlah_masuk: purch.jumlah_masuk,
+            p_harga_modal_beli: purch.harga_modal_beli,
+            p_tanggal_beli: purch.tanggal_beli,
+          });
+          if (!error) syncedPurchases++;
+          else remainingPurch.push(purch);
+        }
+        if (remainingPurch.length > 0) localStorage.setItem(STORAGE_KEYS.QUEUE_PURCHASES, JSON.stringify(remainingPurch));
+        else localStorage.removeItem(STORAGE_KEYS.QUEUE_PURCHASES);
+      } catch (err) {
+        console.warn('Queue purchases parse error:', err);
+      }
+    }
+
+    return { syncedOrders, syncedExpenses, syncedDraws, syncedPurchases };
   }
 
   // Uses Supabase RPC: create_order_rpc
@@ -465,6 +645,13 @@ export class StoreManager {
       for (const item of newOrder.items) {
         await this.updateStock(item.product_id, -item.jumlah);
       }
+    }
+
+    if (typeof window !== 'undefined') {
+      const existingQueueStr = localStorage.getItem(STORAGE_KEYS.QUEUE_ORDERS);
+      const existingQueue: Order[] = existingQueueStr ? JSON.parse(existingQueueStr) : [];
+      existingQueue.push(newOrder);
+      localStorage.setItem(STORAGE_KEYS.QUEUE_ORDERS, JSON.stringify(existingQueue));
     }
 
     const orders = this.getOrdersCache();
@@ -768,6 +955,14 @@ export class StoreManager {
       tanggal_beli: purchaseData.tanggal_beli,
       created_at: new Date().toISOString(),
     };
+
+    if (typeof window !== 'undefined') {
+      const qStr = localStorage.getItem(STORAGE_KEYS.QUEUE_PURCHASES);
+      const qList = qStr ? JSON.parse(qStr) : [];
+      qList.push(purchaseData);
+      localStorage.setItem(STORAGE_KEYS.QUEUE_PURCHASES, JSON.stringify(qList));
+    }
+
     const cache = this.getPurchasesCache();
     const updated = [newPurchase, ...cache];
     localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(updated));
@@ -866,6 +1061,14 @@ export class StoreManager {
       ...expenseData,
       created_at: new Date().toISOString(),
     };
+
+    if (typeof window !== 'undefined') {
+      const qStr = localStorage.getItem(STORAGE_KEYS.QUEUE_EXPENSES);
+      const qList = qStr ? JSON.parse(qStr) : [];
+      qList.push(expenseData);
+      localStorage.setItem(STORAGE_KEYS.QUEUE_EXPENSES, JSON.stringify(qList));
+    }
+
     const stored = localStorage.getItem(STORAGE_KEYS.EXPENSES);
     const list = stored ? JSON.parse(stored) : [];
     const updated = [newExp, ...list];
@@ -926,6 +1129,14 @@ export class StoreManager {
       ...drawData,
       created_at: new Date().toISOString(),
     };
+
+    if (typeof window !== 'undefined') {
+      const qStr = localStorage.getItem(STORAGE_KEYS.QUEUE_DRAWS);
+      const qList = qStr ? JSON.parse(qStr) : [];
+      qList.push(drawData);
+      localStorage.setItem(STORAGE_KEYS.QUEUE_DRAWS, JSON.stringify(qList));
+    }
+
     const stored = localStorage.getItem(STORAGE_KEYS.OWNER_DRAWS);
     const list = stored ? JSON.parse(stored) : [];
     const updated = [newDraw, ...list];

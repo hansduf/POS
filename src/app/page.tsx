@@ -128,11 +128,19 @@ export default function Home() {
     if (typeof window !== 'undefined') {
       setIsOnline(navigator.onLine);
 
-      const handleOnline = () => {
+      const handleOnline = async () => {
         setIsOnline(true);
-        setSyncMessage('⚡ Sinyal Terhubung! Data otomatis disinkronkan.');
-        refreshData();
-        setTimeout(() => setSyncMessage(null), 4500);
+        setSyncMessage('⚡ Sinyal Terhubung! Menyingkronkan transaksi offline...');
+        const res = await StoreManager.syncOfflineQueue();
+        await refreshData();
+
+        const totalSynced = res.syncedOrders + res.syncedExpenses + res.syncedDraws + res.syncedPurchases;
+        if (totalSynced > 0) {
+          setSyncMessage(`✅ ${res.syncedOrders} Nota & ${res.syncedExpenses + res.syncedDraws + res.syncedPurchases} Transaksi Offline Disinkronkan ke Cloud!`);
+        } else {
+          setSyncMessage('⚡ Sinyal Terhubung! Data aplikasi up-to-date.');
+        }
+        setTimeout(() => setSyncMessage(null), 5000);
       };
 
       const handleOffline = () => {
@@ -142,6 +150,17 @@ export default function Home() {
 
       window.addEventListener('online', handleOnline);
       window.addEventListener('offline', handleOffline);
+
+      // Initial mount check
+      if (navigator.onLine) {
+        StoreManager.syncOfflineQueue().then((res) => {
+          if (res.syncedOrders > 0 || res.syncedExpenses > 0 || res.syncedDraws > 0 || res.syncedPurchases > 0) {
+            setSyncMessage(`✅ Data Offline Berhasil Disinkronkan (${res.syncedOrders} Nota)!`);
+            refreshData();
+            setTimeout(() => setSyncMessage(null), 4000);
+          }
+        });
+      }
 
       return () => {
         window.removeEventListener('online', handleOnline);
