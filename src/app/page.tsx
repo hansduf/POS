@@ -121,6 +121,35 @@ export default function Home() {
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
 
+  const [isOnline, setIsOnline] = useState<boolean>(true);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsOnline(navigator.onLine);
+
+      const handleOnline = () => {
+        setIsOnline(true);
+        setSyncMessage('⚡ Sinyal Terhubung! Data otomatis disinkronkan.');
+        refreshData();
+        setTimeout(() => setSyncMessage(null), 4500);
+      };
+
+      const handleOffline = () => {
+        setIsOnline(false);
+        setSyncMessage('🔴 Modus Offline: Transaksi & nota tetap aman tersimpan di HP.');
+      };
+
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
+    }
+  }, []);
+
   const [isMounted, setIsMounted] = useState(false);
 
   // Load data 100% from Supabase DB
@@ -449,6 +478,21 @@ _Sistem Kasir Distributor POS Canvassing_`;
         settings={storeSettings}
       />
 
+      {/* Offline / Online Status & Auto-Sync Banner */}
+      {!isOnline && (
+        <div className="bg-amber-600 text-white text-[11px] font-extrabold py-1.5 px-3 text-center flex items-center justify-center gap-1.5 shadow-xs sticky top-12 z-35">
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-200 animate-ping"></span>
+          <span>🔴 Modus Offline: Sinyal pasar terputus. Transaksi & nota tetap aman tersimpan di HP.</span>
+        </div>
+      )}
+
+      {syncMessage && isOnline && (
+        <div className="bg-emerald-600 text-white text-[11px] font-extrabold py-1.5 px-3 text-center flex items-center justify-center gap-1.5 animate-fade-in shadow-xs sticky top-12 z-35">
+          <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+          <span>{syncMessage}</span>
+        </div>
+      )}
+
       {/* Main Container */}
       <main className="max-w-4xl mx-auto px-2 sm:px-4 pt-2">
         {/* TAB 1: ORDER SALES */}
@@ -531,12 +575,12 @@ _Sistem Kasir Distributor POS Canvassing_`;
               {isLoadingData ? (
                 <div className="text-center py-12 text-slate-500 space-y-2">
                   <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                  <p className="text-xs font-bold">Mengambil data dari Supabase...</p>
+                  <p className="text-xs font-bold">Memuat katalog produk...</p>
                 </div>
               ) : filteredProducts.length === 0 ? (
                 <div className="text-center py-12 text-slate-500 space-y-1">
                   <Package className="w-10 h-10 text-slate-400 mx-auto" />
-                  <p className="text-xs font-bold text-slate-700">Tidak ada produk ditemukan di Supabase</p>
+                  <p className="text-xs font-bold text-slate-700">Tidak ada produk ditemukan</p>
                 </div>
               ) : (
                 filteredProducts.map((product) => (
@@ -867,12 +911,12 @@ _Sistem Kasir Distributor POS Canvassing_`;
               {isLoadingData ? (
                 <div className="text-center py-12 text-slate-500 space-y-2">
                   <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                  <p className="text-xs font-bold">Mengambil data stok dari Supabase...</p>
+                  <p className="text-xs font-bold">Memuat data stok gudang...</p>
                 </div>
               ) : products.length === 0 ? (
                 <div className="text-center py-12 text-slate-500 space-y-1">
                   <Package className="w-10 h-10 text-slate-400 mx-auto" />
-                  <p className="text-xs font-bold text-slate-700">Belum ada data stok di Supabase</p>
+                  <p className="text-xs font-bold text-slate-700">Belum ada data stok barang</p>
                 </div>
               ) : (
                 products.map((p) => (
@@ -942,7 +986,7 @@ _Sistem Kasir Distributor POS Canvassing_`;
               <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                 <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
                   <StoreIcon className="w-4 h-4 text-emerald-700" />
-                  Daftar Toko & Performa (Supabase DB)
+                  Daftar Toko & Performa Pelanggan
                 </h2>
 
                 <button
