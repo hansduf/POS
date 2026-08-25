@@ -43,6 +43,9 @@ import {
   Truck,
   CheckCircle2,
   Calendar,
+  Wallet,
+  Fuel,
+  ArrowDownRight,
   Store as StoreIcon,
   Package,
   TrendingUp,
@@ -378,7 +381,6 @@ export default function Home() {
         deliveryCount={todayDeliveryCount}
         openCart={() => setIsCartOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenSoloFinance={() => setIsSoloFinanceOpen(true)}
         settings={storeSettings}
       />
 
@@ -949,7 +951,146 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 5: DASHBOARD UTAMA */}
+        {/* TAB 5: POS KEUANGAN SOLO (3 KANTONG) */}
+        {activeTab === 'keuangan' && (
+          <div className="space-y-3">
+            {/* Header Banner */}
+            <div className="bg-slate-900 text-white rounded-xl p-3.5 shadow-xs flex items-center justify-between">
+              <div>
+                <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">
+                  Kas Usaha Solo (Penjualan Lunas)
+                </span>
+                <h3 className="text-xl font-black text-white">
+                  {formatIDR(StoreManager.getSoloFinancialBuckets(orders, purchases, expenses, ownerDraws).totalOmsetLunas)}
+                </h3>
+                <p className="text-[10px] text-emerald-400 font-medium">Telah terbagi otomatis ke 3 Pos Keuangan Usaha</p>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] text-amber-300 font-bold bg-amber-400/20 px-2 py-1 rounded-lg border border-amber-400/30 inline-block">
+                  Solo Operator
+                </span>
+              </div>
+            </div>
+
+            {/* 3 Pos Cards */}
+            {(() => {
+              const buckets = StoreManager.getSoloFinancialBuckets(orders, purchases, expenses, ownerDraws);
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {/* Pos 1: Restock Supplier */}
+                  <div className="bg-white border border-emerald-300 rounded-xl p-3 shadow-xs space-y-1.5">
+                    <div className="flex items-center justify-between text-emerald-800">
+                      <span className="font-extrabold text-xs uppercase flex items-center gap-1">
+                        <Package className="w-3.5 h-3.5 text-emerald-600" />
+                        1. Belanja Stok (80%)
+                      </span>
+                    </div>
+                    <h4 className="font-black text-lg text-slate-900">{formatIDR(buckets.posModalBelanjaStok)}</h4>
+                    <p className="text-[10px] text-slate-500">Terpakai: {formatIDR(buckets.totalPembelianRestock)}</p>
+                    <button
+                      onClick={() => setIsPurchaseModalOpen(true)}
+                      className="w-full mt-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-lg text-xs flex items-center justify-center gap-1 shadow-xs active:scale-95 transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+ Restock Supplier</span>
+                    </button>
+                  </div>
+
+                  {/* Pos 2: Operasional Lapangan */}
+                  <div className="bg-white border border-amber-300 rounded-xl p-3 shadow-xs space-y-1.5">
+                    <div className="flex items-center justify-between text-amber-800">
+                      <span className="font-extrabold text-xs uppercase flex items-center gap-1">
+                        <Fuel className="w-3.5 h-3.5 text-amber-600" />
+                        2. Operasional (5%)
+                      </span>
+                    </div>
+                    <h4 className="font-black text-lg text-slate-900">{formatIDR(buckets.posOperasional)}</h4>
+                    <p className="text-[10px] text-slate-500">Terpakai: {formatIDR(buckets.totalPengeluaranOperasional)}</p>
+                    <button
+                      onClick={() => setIsExpenseModalOpen(true)}
+                      className="w-full mt-1 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-lg text-xs flex items-center justify-center gap-1 shadow-xs active:scale-95 transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+ Catat Operasional</span>
+                    </button>
+                  </div>
+
+                  {/* Pos 3: Gaji Pribadi Owner */}
+                  <div className="bg-white border border-blue-300 rounded-xl p-3 shadow-xs space-y-1.5">
+                    <div className="flex items-center justify-between text-blue-800">
+                      <span className="font-extrabold text-xs uppercase flex items-center gap-1">
+                        <Wallet className="w-3.5 h-3.5 text-blue-600" />
+                        3. Gaji Saya (15%)
+                      </span>
+                    </div>
+                    <h4 className="font-black text-lg text-slate-900">{formatIDR(buckets.posGajiOwner)}</h4>
+                    <p className="text-[10px] text-slate-500">Sudah Ditarik: {formatIDR(buckets.totalPenarikanGaji)}</p>
+                    <button
+                      onClick={() => setIsOwnerDrawModalOpen(true)}
+                      className="w-full mt-1 py-1.5 bg-blue-700 hover:bg-blue-800 text-white font-extrabold rounded-lg text-xs flex items-center justify-center gap-1 shadow-xs active:scale-95 transition-all"
+                    >
+                      <ArrowDownRight className="w-3.5 h-3.5" />
+                      <span>+ Tarik Gaji Saya</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Flat Divider Lists */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Histori Operasional */}
+              <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
+                <h4 className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5 border-b border-slate-200 pb-1.5 uppercase">
+                  <Fuel className="w-3.5 h-3.5 text-amber-600" />
+                  Histori Operasional Lapangan ({expenses.length})
+                </h4>
+
+                {expenses.length === 0 ? (
+                  <p className="text-center py-6 text-[11px] text-slate-400 font-bold">Belum ada pengeluaran operasional</p>
+                ) : (
+                  <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
+                    {expenses.map((e) => (
+                      <div key={e.id} className="py-1.5 flex items-center justify-between text-xs">
+                        <div>
+                          <p className="font-bold text-slate-900">{e.kategori}</p>
+                          <p className="text-[10px] text-slate-500">{e.keterangan || '-'} ({e.tanggal})</p>
+                        </div>
+                        <span className="font-black text-amber-700">{formatIDR(e.nominal)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Histori Gaji Owner */}
+              <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
+                <h4 className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5 border-b border-slate-200 pb-1.5 uppercase">
+                  <Wallet className="w-3.5 h-3.5 text-blue-600" />
+                  Histori Penarikan Gaji Saya ({ownerDraws.length})
+                </h4>
+
+                {ownerDraws.length === 0 ? (
+                  <p className="text-center py-6 text-[11px] text-slate-400 font-bold">Belum ada penarikan gaji pribadi</p>
+                ) : (
+                  <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
+                    {ownerDraws.map((d) => (
+                      <div key={d.id} className="py-1.5 flex items-center justify-between text-xs">
+                        <div>
+                          <p className="font-bold text-slate-900">{d.catatan || 'Tarik Gaji Owner'}</p>
+                          <p className="text-[10px] text-slate-500">{d.tanggal}</p>
+                        </div>
+                        <span className="font-black text-blue-800">{formatIDR(d.nominal)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 6: DASHBOARD UTAMA */}
         {activeTab === 'dashboard' && (
           <div className="space-y-3">
             {/* Top Stat Banner */}
@@ -1124,18 +1265,6 @@ export default function Home() {
           StoreManager.getSoloFinancialBuckets(orders, purchases, expenses, ownerDraws).posGajiOwner
         }
         onSaveOwnerDraw={handleSaveOwnerDraw}
-      />
-
-      <SoloFinancialDashboardModal
-        isOpen={isSoloFinanceOpen}
-        onClose={() => setIsSoloFinanceOpen(false)}
-        orders={orders}
-        purchases={purchases}
-        expenses={expenses}
-        ownerDraws={ownerDraws}
-        onOpenExpenseModal={() => setIsExpenseModalOpen(true)}
-        onOpenPurchaseModal={() => setIsPurchaseModalOpen(true)}
-        onOpenOwnerDrawModal={() => setIsOwnerDrawModalOpen(true)}
       />
 
       {/* Edit / Add Product Modal */}

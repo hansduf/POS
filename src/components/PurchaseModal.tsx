@@ -26,12 +26,23 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
 }) => {
   const todayStr = new Date().toISOString().split('T')[0];
 
-  const [selectedProductId, setSelectedProductId] = useState<string>(products[0]?.id || '');
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [supplierNama, setSupplierNama] = useState<string>('Supplier Utama');
   const [jumlahMasuk, setJumlahMasuk] = useState<number>(10);
   const [hargaModalBeli, setHargaModalBeli] = useState<number>(0);
   const [tanggalBeli, setTanggalBeli] = useState<string>(todayStr);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  React.useEffect(() => {
+    if (isOpen && products.length > 0) {
+      const currentExists = products.some((p) => p.id === selectedProductId);
+      if (!selectedProductId || !currentExists) {
+        const firstProd = products[0];
+        setSelectedProductId(firstProd.id);
+        setHargaModalBeli(firstProd.harga_modal);
+      }
+    }
+  }, [isOpen, products, selectedProductId]);
 
   if (!isOpen) return null;
 
@@ -46,7 +57,9 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedProductId) {
+    const activeProductId = selectedProductId || products[0]?.id;
+
+    if (!activeProductId) {
       alert('Pilih produk yang di-restock');
       return;
     }
@@ -58,7 +71,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
     setIsSubmitting(true);
     try {
       await onSavePurchase({
-        product_id: selectedProductId,
+        product_id: activeProductId,
         supplier_nama: supplierNama.trim() || 'Supplier Utama',
         jumlah_masuk: jumlahMasuk,
         harga_modal_beli: hargaModalBeli || selectedProduct?.harga_modal || 0,

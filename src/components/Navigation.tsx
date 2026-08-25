@@ -6,7 +6,7 @@ import { ShoppingBag, Truck, Package, Store, LayoutDashboard, Settings, Wallet }
 import { StoreSettings } from '@/types';
 import { DEFAULT_SETTINGS } from '@/lib/store';
 
-export type TabType = 'order' | 'pengiriman' | 'stok' | 'toko' | 'dashboard';
+export type TabType = 'order' | 'pengiriman' | 'stok' | 'toko' | 'keuangan' | 'dashboard';
 
 interface NavigationProps {
   activeTab: TabType;
@@ -15,7 +15,6 @@ interface NavigationProps {
   deliveryCount?: number;
   openCart: () => void;
   onOpenSettings?: () => void;
-  onOpenSoloFinance?: () => void;
   settings?: StoreSettings;
 }
 
@@ -26,7 +25,6 @@ export const Navigation: React.FC<NavigationProps> = ({
   deliveryCount = 0,
   openCart,
   onOpenSettings,
-  onOpenSoloFinance,
   settings = DEFAULT_SETTINGS,
 }) => {
   const storeName = settings.nama_usaha || 'DISTRIBUTOR JOSJIS';
@@ -37,6 +35,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'pengiriman' as TabType, label: 'Pengiriman', icon: Truck, badge: deliveryCount > 0 ? deliveryCount : null },
     { id: 'stok' as TabType, label: 'Stok', icon: Package },
     { id: 'toko' as TabType, label: 'Toko', icon: Store },
+    { id: 'keuangan' as TabType, label: 'Keuangan', icon: Wallet },
     { id: 'dashboard' as TabType, label: 'Dashboard', icon: LayoutDashboard },
   ];
 
@@ -83,17 +82,6 @@ export const Navigation: React.FC<NavigationProps> = ({
             })}
           </nav>
 
-          {onOpenSoloFinance && (
-            <button
-              onClick={onOpenSoloFinance}
-              className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 font-extrabold text-xs rounded-xl transition-all shadow-xs"
-              title="Pos Keuangan Solo Distributor (3 Kantong)"
-            >
-              <Wallet className="w-4 h-4 text-blue-700" />
-              <span>Pos Keuangan</span>
-            </button>
-          )}
-
           {onOpenSettings && (
             <button
               onClick={onOpenSettings}
@@ -130,17 +118,6 @@ export const Navigation: React.FC<NavigationProps> = ({
             >
               <ShoppingBag className="w-3.5 h-3.5" />
               <span>Keranjang ({cartCount})</span>
-            </button>
-          )}
-
-          {onOpenSoloFinance && (
-            <button
-              onClick={onOpenSoloFinance}
-              className="p-1.5 text-blue-700 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-1 text-[11px] font-bold"
-              title="Pos Keuangan"
-            >
-              <Wallet className="w-4 h-4 text-blue-700" />
-              <span className="hidden sm:inline">Kas</span>
             </button>
           )}
 
