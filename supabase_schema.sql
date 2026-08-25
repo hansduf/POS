@@ -375,6 +375,33 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- 8. TABEL EXPENSES (Pengeluaran Operasional Lapangan: Bensin, Makan, Tol, Perawatan Armada)
+CREATE TABLE IF NOT EXISTS public.expenses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    kategori VARCHAR(100) NOT NULL DEFAULT 'Bensin / BBM',
+    nominal DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    keterangan TEXT,
+    tanggal DATE NOT NULL DEFAULT CURRENT_DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to expenses" ON public.expenses;
+CREATE POLICY "Allow all access to expenses" ON public.expenses FOR ALL USING (true) WITH CHECK (true);
+
+-- 9. TABEL OWNER_DRAWS (Penarikan Gaji / Uang Pribadi Owner)
+CREATE TABLE IF NOT EXISTS public.owner_draws (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nominal DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    catatan TEXT,
+    tanggal DATE NOT NULL DEFAULT CURRENT_DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.owner_draws ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to owner_draws" ON public.owner_draws;
+CREATE POLICY "Allow all access to owner_draws" ON public.owner_draws FOR ALL USING (true) WITH CHECK (true);
+
 -- =============================================================================
 -- DATA INITIAL / SEED SAMPLE DATA
 -- =============================================================================

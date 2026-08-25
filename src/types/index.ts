@@ -119,3 +119,37 @@ export interface FifoAssetSummary {
   totalHppLunasFifo: number;
   labaBersihPasti: number;
 }
+
+export type ExpenseKategori =
+  | 'Bensin / BBM'
+  | 'Makan & Minum Lapangan'
+  | 'Tol, Parkir & Retribusi'
+  | 'Perawatan & Servis Armada'
+  | 'Operasional Lainnya';
+
+export interface Expense {
+  id: string;
+  kategori: ExpenseKategori | string;
+  nominal: number;
+  keterangan: string;
+  tanggal: string;
+  created_at?: string;
+}
+
+export interface OwnerDraw {
+  id: string;
+  nominal: number;
+  catatan: string;
+  tanggal: string;
+  created_at?: string;
+}
+
+export interface SoloFinancialBuckets {
+  totalOmsetLunas: number;
+  posModalBelanjaStok: number;
+  posOperasional: number;
+  posGajiOwner: number;
+  totalPengeluaranOperasional: number;
+  totalPenarikanGaji: number;
+  totalPembelianRestock: number;
+}

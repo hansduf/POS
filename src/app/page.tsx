@@ -14,6 +14,9 @@ import { SuratJalanModal } from '@/components/SuratJalanModal';
 import { SettingsModal } from '@/components/SettingsModal';
 import { PurchaseModal } from '@/components/PurchaseModal';
 import { FifoStockDashboardModal } from '@/components/FifoStockDashboardModal';
+import { ExpenseModal } from '@/components/ExpenseModal';
+import { OwnerDrawModal } from '@/components/OwnerDrawModal';
+import { SoloFinancialDashboardModal } from '@/components/SoloFinancialDashboardModal';
 import { StoreManager, DEFAULT_SETTINGS, getLocalTodayStr } from '@/lib/store';
 import {
   Toko,
@@ -27,6 +30,9 @@ import {
   StatusPembayaran,
   StoreSettings,
   Purchase,
+  Expense,
+  OwnerDraw,
+  ExpenseKategori,
 } from '@/types';
 import {
   Plus,
@@ -94,18 +100,35 @@ export default function Home() {
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [isFifoDashboardOpen, setIsFifoDashboardOpen] = useState(false);
 
+  // Expenses, Owner Draws & Solo Finance States
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [ownerDraws, setOwnerDraws] = useState<OwnerDraw[]>([]);
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const [isOwnerDrawModalOpen, setIsOwnerDrawModalOpen] = useState(false);
+  const [isSoloFinanceOpen, setIsSoloFinanceOpen] = useState(false);
+
   const [isMounted, setIsMounted] = useState(false);
 
   // Load data 100% from Supabase DB
   const refreshData = async () => {
     setIsLoadingData(true);
     try {
-      const [loadedTokos, loadedProducts, loadedOrders, loadedSettings, loadedPurchases] = await Promise.all([
+      const [
+        loadedTokos,
+        loadedProducts,
+        loadedOrders,
+        loadedSettings,
+        loadedPurchases,
+        loadedExpenses,
+        loadedOwnerDraws,
+      ] = await Promise.all([
         StoreManager.fetchTokos(),
         StoreManager.fetchProducts(),
         StoreManager.fetchOrders(),
         StoreManager.fetchSettings(),
         StoreManager.fetchPurchases(),
+        StoreManager.fetchExpenses(),
+        StoreManager.fetchOwnerDraws(),
       ]);
 
       setTokos(loadedTokos);
@@ -113,6 +136,8 @@ export default function Home() {
       setOrders(loadedOrders);
       setStoreSettings(loadedSettings);
       setPurchases(loadedPurchases);
+      setExpenses(loadedExpenses);
+      setOwnerDraws(loadedOwnerDraws);
 
       if (loadedTokos.length > 0 && !selectedTokoId) {
         setSelectedTokoId(loadedTokos[0].id);
@@ -132,6 +157,25 @@ export default function Home() {
     tanggal_beli: string;
   }) => {
     await StoreManager.savePurchase(purchaseData);
+    await refreshData();
+  };
+
+  const handleSaveExpense = async (expenseData: {
+    kategori: ExpenseKategori;
+    nominal: number;
+    keterangan: string;
+    tanggal: string;
+  }) => {
+    await StoreManager.saveExpense(expenseData);
+    await refreshData();
+  };
+
+  const handleSaveOwnerDraw = async (drawData: {
+    nominal: number;
+    catatan: string;
+    tanggal: string;
+  }) => {
+    await StoreManager.saveOwnerDraw(drawData);
     await refreshData();
   };
 
@@ -334,6 +378,7 @@ export default function Home() {
         deliveryCount={todayDeliveryCount}
         openCart={() => setIsCartOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenSoloFinance={() => setIsSoloFinanceOpen(true)}
         settings={storeSettings}
       />
 
@@ -1064,6 +1109,33 @@ export default function Home() {
         products={products}
         purchases={purchases}
         orders={orders}
+      />
+
+      <ExpenseModal
+        isOpen={isExpenseModalOpen}
+        onClose={() => setIsExpenseModalOpen(false)}
+        onSaveExpense={handleSaveExpense}
+      />
+
+      <OwnerDrawModal
+        isOpen={isOwnerDrawModalOpen}
+        onClose={() => setIsOwnerDrawModalOpen(false)}
+        maxAvailableSalary={
+          StoreManager.getSoloFinancialBuckets(orders, purchases, expenses, ownerDraws).posGajiOwner
+        }
+        onSaveOwnerDraw={handleSaveOwnerDraw}
+      />
+
+      <SoloFinancialDashboardModal
+        isOpen={isSoloFinanceOpen}
+        onClose={() => setIsSoloFinanceOpen(false)}
+        orders={orders}
+        purchases={purchases}
+        expenses={expenses}
+        ownerDraws={ownerDraws}
+        onOpenExpenseModal={() => setIsExpenseModalOpen(true)}
+        onOpenPurchaseModal={() => setIsPurchaseModalOpen(true)}
+        onOpenOwnerDrawModal={() => setIsOwnerDrawModalOpen(true)}
       />
 
       {/* Edit / Add Product Modal */}

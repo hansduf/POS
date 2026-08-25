@@ -8,6 +8,8 @@ const STORAGE_KEYS = {
   LOGS: 'pos_canvass_logs_cache',
   SETTINGS: 'pos_canvass_settings_cache',
   PURCHASES: 'pos_canvass_purchases_cache',
+  EXPENSES: 'pos_canvass_expenses_cache',
+  OWNER_DRAWS: 'pos_canvass_owner_draws_cache',
 };
 
 export const DEFAULT_SETTINGS: StoreSettings = {
@@ -825,6 +827,147 @@ export class StoreManager {
       totalLunasOmset,
       totalHppLunasFifo,
       labaBersihPasti,
+    };
+  }
+
+  // --- EXPENSES (Pengeluaran Operasional) ---
+  static async fetchExpenses(): Promise<import('@/types').Expense[]> {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('expenses')
+          .select('*')
+          .order('tanggal', { ascending: false });
+
+        if (!error && data) {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(data));
+          }
+          return data as import('@/types').Expense[];
+        }
+      } catch (err) {
+        console.warn('Supabase fetch expenses error:', err);
+      }
+    }
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(STORAGE_KEYS.EXPENSES);
+      if (stored) return JSON.parse(stored);
+    }
+    return [];
+  }
+
+  static async saveExpense(expenseData: Omit<import('@/types').Expense, 'id'>): Promise<import('@/types').Expense> {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('expenses')
+          .insert([expenseData])
+          .select('*')
+          .single();
+
+        if (!error && data) {
+          await this.fetchExpenses();
+          return data as import('@/types').Expense;
+        }
+      } catch (err) {
+        console.warn('Supabase save expense error:', err);
+      }
+    }
+
+    const newExp: import('@/types').Expense = {
+      id: 'exp-' + Date.now(),
+      ...expenseData,
+      created_at: new Date().toISOString(),
+    };
+    const stored = localStorage.getItem(STORAGE_KEYS.EXPENSES);
+    const list = stored ? JSON.parse(stored) : [];
+    const updated = [newExp, ...list];
+    localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(updated));
+    return newExp;
+  }
+
+  // --- OWNER DRAWS (Penarikan Gaji Owner) ---
+  static async fetchOwnerDraws(): Promise<import('@/types').OwnerDraw[]> {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('owner_draws')
+          .select('*')
+          .order('tanggal', { ascending: false });
+
+        if (!error && data) {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEYS.OWNER_DRAWS, JSON.stringify(data));
+          }
+          return data as import('@/types').OwnerDraw[];
+        }
+      } catch (err) {
+        console.warn('Supabase fetch owner draws error:', err);
+      }
+    }
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(STORAGE_KEYS.OWNER_DRAWS);
+      if (stored) return JSON.parse(stored);
+    }
+    return [];
+  }
+
+  static async saveOwnerDraw(drawData: Omit<import('@/types').OwnerDraw, 'id'>): Promise<import('@/types').OwnerDraw> {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('owner_draws')
+          .insert([drawData])
+          .select('*')
+          .single();
+
+        if (!error && data) {
+          await this.fetchOwnerDraws();
+          return data as import('@/types').OwnerDraw;
+        }
+      } catch (err) {
+        console.warn('Supabase save owner draw error:', err);
+      }
+    }
+
+    const newDraw: import('@/types').OwnerDraw = {
+      id: 'draw-' + Date.now(),
+      ...drawData,
+      created_at: new Date().toISOString(),
+    };
+    const stored = localStorage.getItem(STORAGE_KEYS.OWNER_DRAWS);
+    const list = stored ? JSON.parse(stored) : [];
+    const updated = [newDraw, ...list];
+    localStorage.setItem(STORAGE_KEYS.OWNER_DRAWS, JSON.stringify(updated));
+    return newDraw;
+  }
+
+  // --- SOLO FINANCIAL BUCKETS CALCULATION ---
+  static getSoloFinancialBuckets(
+    orders: Order[],
+    purchases: import('@/types').Purchase[],
+    expenses: import('@/types').Expense[],
+    ownerDraws: import('@/types').OwnerDraw[]
+  ): import('@/types').SoloFinancialBuckets {
+    const lunasOrders = orders.filter((o) => o.status_pembayaran === 'Lunas');
+    const totalOmsetLunas = lunasOrders.reduce((sum, o) => sum + o.total_bayar, 0);
+
+    const totalPembelianRestock = purchases.reduce((sum, p) => sum + p.total_belanja, 0);
+    const totalPengeluaranOperasional = expenses.reduce((sum, e) => sum + e.nominal, 0);
+    const totalPenarikanGaji = ownerDraws.reduce((sum, d) => sum + d.nominal, 0);
+
+    const posModalBelanjaStok = Math.max(0, (totalOmsetLunas * 0.80) - totalPembelianRestock);
+    const posOperasional = Math.max(0, (totalOmsetLunas * 0.05) - totalPengeluaranOperasional);
+    const posGajiOwner = Math.max(0, (totalOmsetLunas * 0.15) - totalPenarikanGaji);
+
+    return {
+      totalOmsetLunas,
+      posModalBelanjaStok,
+      posOperasional,
+      posGajiOwner,
+      totalPengeluaranOperasional,
+      totalPenarikanGaji,
+      totalPembelianRestock,
     };
   }
 }
