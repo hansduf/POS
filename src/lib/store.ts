@@ -118,6 +118,9 @@ export class StoreManager {
 
   // --- TOKOS ---
   static async fetchTokos(): Promise<Toko[]> {
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      return this.getTokosCache();
+    }
     if (isSupabaseConfigured && supabase) {
       try {
         const { data, error } = await supabase
@@ -131,21 +134,13 @@ export class StoreManager {
           }
           return data as Toko[];
         } else if (error) {
-          console.warn('Supabase fetch tokos error:', error.message);
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem(STORAGE_KEYS.TOKOS);
-          }
-          return [];
+          console.warn('Supabase fetch tokos warning:', error.message);
         }
       } catch (err) {
         console.warn('Supabase tokos fetch warning:', err);
       }
     }
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(STORAGE_KEYS.TOKOS);
-      if (stored) return JSON.parse(stored);
-    }
-    return [];
+    return this.getTokosCache();
   }
 
   static getTokosCache(): Toko[] {
@@ -234,6 +229,9 @@ export class StoreManager {
 
   // --- PRODUCTS ---
   static async fetchProducts(): Promise<Product[]> {
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      return this.getProductsCache();
+    }
     if (isSupabaseConfigured && supabase) {
       try {
         const { data, error } = await supabase
@@ -247,21 +245,13 @@ export class StoreManager {
           }
           return data as Product[];
         } else if (error) {
-          console.warn('Supabase fetch products error:', error.message);
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem(STORAGE_KEYS.PRODUCTS);
-          }
-          return [];
+          console.warn('Supabase fetch products warning:', error.message);
         }
       } catch (err) {
         console.warn('Supabase products fetch warning:', err);
       }
     }
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
-      if (stored) return JSON.parse(stored);
-    }
-    return [];
+    return this.getProductsCache();
   }
 
   static getProductsCache(): Product[] {
@@ -350,6 +340,9 @@ export class StoreManager {
 
   // --- ORDERS & ORDER LOGS WITH SUPABASE RPC ---
   static async fetchOrders(): Promise<Order[]> {
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      return this.getOrdersCache();
+    }
     if (isSupabaseConfigured && supabase) {
       try {
         const { data, error } = await supabase
@@ -363,22 +356,13 @@ export class StoreManager {
           }
           return data as Order[];
         } else if (error) {
-          console.warn('Supabase fetch orders error:', error.message);
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem(STORAGE_KEYS.ORDERS);
-          }
-          return [];
+          console.warn('Supabase fetch orders warning:', error.message);
         }
       } catch (err) {
         console.warn('Supabase orders fetch warning:', err);
       }
     }
-
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(STORAGE_KEYS.ORDERS);
-      if (stored) return JSON.parse(stored);
-    }
-    return [];
+    return this.getOrdersCache();
   }
 
   static getOrdersCache(): Order[] {
@@ -692,6 +676,9 @@ export class StoreManager {
 
   // --- PURCHASES & FIFO BATCH MANAGEMENT ---
   static async fetchPurchases(): Promise<import('@/types').Purchase[]> {
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      return this.getPurchasesCache();
+    }
     if (isSupabaseConfigured && supabase) {
       try {
         const { data, error } = await supabase
@@ -711,11 +698,7 @@ export class StoreManager {
         console.warn('Supabase purchases fetch warning:', err);
       }
     }
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(STORAGE_KEYS.PURCHASES);
-      if (stored) return JSON.parse(stored);
-    }
-    return [];
+    return this.getPurchasesCache();
   }
 
   static getPurchasesCache(): import('@/types').Purchase[] {
@@ -832,6 +815,10 @@ export class StoreManager {
 
   // --- EXPENSES (Pengeluaran Operasional) ---
   static async fetchExpenses(): Promise<import('@/types').Expense[]> {
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      const stored = localStorage.getItem(STORAGE_KEYS.EXPENSES);
+      return stored ? JSON.parse(stored) : [];
+    }
     if (isSupabaseConfigured && supabase) {
       try {
         const { data, error } = await supabase
@@ -888,6 +875,10 @@ export class StoreManager {
 
   // --- OWNER DRAWS (Penarikan Gaji Owner) ---
   static async fetchOwnerDraws(): Promise<import('@/types').OwnerDraw[]> {
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      const stored = localStorage.getItem(STORAGE_KEYS.OWNER_DRAWS);
+      return stored ? JSON.parse(stored) : [];
+    }
     if (isSupabaseConfigured && supabase) {
       try {
         const { data, error } = await supabase
