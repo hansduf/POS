@@ -12,6 +12,8 @@ import { EditNotaModal } from '@/components/EditNotaModal';
 import { ConfirmDeliveryModal } from '@/components/ConfirmDeliveryModal';
 import { SuratJalanModal } from '@/components/SuratJalanModal';
 import { SettingsModal } from '@/components/SettingsModal';
+import { PurchaseModal } from '@/components/PurchaseModal';
+import { FifoStockDashboardModal } from '@/components/FifoStockDashboardModal';
 import { StoreManager, DEFAULT_SETTINGS, getLocalTodayStr } from '@/lib/store';
 import {
   Toko,
@@ -24,10 +26,13 @@ import {
   JenisPembayaran,
   StatusPembayaran,
   StoreSettings,
+  Purchase,
 } from '@/types';
 import {
   Plus,
   Search,
+  PackageCheck,
+  Layers,
   Filter,
   Truck,
   CheckCircle2,
@@ -83,8 +88,11 @@ export default function Home() {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [confirmingOrder, setConfirmingOrder] = useState<Order | null>(null);
 
-  // Edit Product Modal State
+  // Edit Product & Restock Modal State
   const [editingProduct, setEditingProduct] = useState<Partial<Product> | null>(null);
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const [isFifoDashboardOpen, setIsFifoDashboardOpen] = useState(false);
 
   const [isMounted, setIsMounted] = useState(false);
 
@@ -92,17 +100,19 @@ export default function Home() {
   const refreshData = async () => {
     setIsLoadingData(true);
     try {
-      const [loadedTokos, loadedProducts, loadedOrders, loadedSettings] = await Promise.all([
+      const [loadedTokos, loadedProducts, loadedOrders, loadedSettings, loadedPurchases] = await Promise.all([
         StoreManager.fetchTokos(),
         StoreManager.fetchProducts(),
         StoreManager.fetchOrders(),
         StoreManager.fetchSettings(),
+        StoreManager.fetchPurchases(),
       ]);
 
       setTokos(loadedTokos);
       setProducts(loadedProducts);
       setOrders(loadedOrders);
       setStoreSettings(loadedSettings);
+      setPurchases(loadedPurchases);
 
       if (loadedTokos.length > 0 && !selectedTokoId) {
         setSelectedTokoId(loadedTokos[0].id);
@@ -112,6 +122,17 @@ export default function Home() {
     } finally {
       setIsLoadingData(false);
     }
+  };
+
+  const handleSavePurchase = async (purchaseData: {
+    product_id: string;
+    supplier_nama: string;
+    jumlah_masuk: number;
+    harga_modal_beli: number;
+    tanggal_beli: string;
+  }) => {
+    await StoreManager.savePurchase(purchaseData);
+    await refreshData();
   };
 
   useEffect(() => {
@@ -681,34 +702,52 @@ export default function Home() {
         {activeTab === 'stok' && (
           <div className="space-y-3">
             {/* Header */}
-            <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs flex items-center justify-between">
+            <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
+                <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5 uppercase tracking-tight">
                   <Package className="w-4 h-4 text-emerald-700" />
-                  Stok & 3-Tier Harga (Supabase DB)
+                  Stok & Batch FIFO Supplier
                 </h2>
-                <p className="text-[11px] text-slate-500 font-medium">Kelola Harga Modal, Normal, & Minimum Floor</p>
+                <p className="text-[11px] text-slate-500 font-medium">Restock Batch FIFO, Aset Uang Barang, & 3-Tier Harga</p>
               </div>
 
-              <button
-                onClick={() => {
-                  setEditingProduct({
-                    nama_produk: '',
-                    kode_sku: `SKU-${Date.now()}`,
-                    satuan: 'Pcs',
-                    harga_modal: 0,
-                    harga_normal: 0,
-                    harga_minimum: 0,
-                    stok: 0,
-                    category: 'Umum',
-                  });
-                  setIsProductModalOpen(true);
-                }}
-                className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-lg text-xs shadow-xs"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>+ Produk</span>
-              </button>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  onClick={() => setIsFifoDashboardOpen(true)}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-lg text-xs shadow-xs"
+                >
+                  <Layers className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Aset & Laba FIFO</span>
+                </button>
+
+                <button
+                  onClick={() => setIsPurchaseModalOpen(true)}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-extrabold rounded-lg text-xs shadow-xs"
+                >
+                  <PackageCheck className="w-3.5 h-3.5" />
+                  <span>+ Restock Supplier</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setEditingProduct({
+                      nama_produk: '',
+                      kode_sku: `SKU-${Date.now()}`,
+                      satuan: 'Pcs',
+                      harga_modal: 0,
+                      harga_normal: 0,
+                      harga_minimum: 0,
+                      stok: 0,
+                      category: 'Umum',
+                    });
+                    setIsProductModalOpen(true);
+                  }}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-lg text-xs shadow-xs"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Produk</span>
+                </button>
+              </div>
             </div>
 
             {/* Product Mobile Card List (Zero Horizontal Scroll) */}
@@ -1010,6 +1049,21 @@ export default function Home() {
         onClose={() => setConfirmingOrder(null)}
         order={confirmingOrder}
         onConfirm={handleConfirmDelivery}
+      />
+
+      <PurchaseModal
+        isOpen={isPurchaseModalOpen}
+        onClose={() => setIsPurchaseModalOpen(false)}
+        products={products}
+        onSavePurchase={handleSavePurchase}
+      />
+
+      <FifoStockDashboardModal
+        isOpen={isFifoDashboardOpen}
+        onClose={() => setIsFifoDashboardOpen(false)}
+        products={products}
+        purchases={purchases}
+        orders={orders}
       />
 
       {/* Edit / Add Product Modal */}

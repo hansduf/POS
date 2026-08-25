@@ -240,6 +240,141 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- 7. TABEL PURCHASES (Restock Lot / Batch Supplier untuk FIFO)
+CREATE TABLE IF NOT EXISTS public.purchases (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    supplier_nama VARCHAR(255) NOT NULL DEFAULT 'Supplier Utama',
+    jumlah_masuk INT NOT NULL DEFAULT 0,
+    sisa_stok INT NOT NULL DEFAULT 0,
+    harga_modal_beli DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    total_belanja DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    tanggal_beli DATE NOT NULL DEFAULT CURRENT_DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.purchases ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to purchases" ON public.purchases;
+CREATE POLICY "Allow all access to purchases" ON public.purchases FOR ALL USING (true) WITH CHECK (true);
+
+-- RPC: Restock Product (Inserts Purchase Lot Batch & Increases Total Product Stock)
+CREATE OR REPLACE FUNCTION public.restock_product_rpc(
+    p_product_id UUID,
+    p_supplier_nama VARCHAR,
+    p_jumlah_masuk INT,
+    p_harga_modal_beli DECIMAL,
+    p_tanggal_beli DATE
+) RETURNS UUID AS $$
+DECLARE
+    v_purchase_id UUID;
+    v_total_belanja DECIMAL;
+BEGIN
+    v_total_belanja := p_jumlah_masuk * p_harga_modal_beli;
+
+    -- 1. Insert Lot Batch
+    INSERT INTO public.purchases (
+        product_id, supplier_nama, jumlah_masuk, sisa_stok,
+        harga_modal_beli, total_belanja, tanggal_beli
+    ) VALUES (
+        p_product_id, p_supplier_nama, p_jumlah_masuk, p_jumlah_masuk,
+        p_harga_modal_beli, v_total_belanja, p_tanggal_beli
+    ) RETURNING id INTO v_purchase_id;
+
+    -- 2. Update Total Product Stock & Latest Modal Price in Catalog
+    UPDATE public.products
+    SET stok = stok + p_jumlah_masuk,
+        harga_modal = p_harga_modal_beli,
+        updated_at = NOW()
+    WHERE id = p_product_id;
+
+    RETURN v_purchase_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- RPC: Create Order FIFO (Deducts stock from oldest lot batch where sisa_stok > 0)
+CREATE OR REPLACE FUNCTION public.create_order_fifo_rpc(
+    p_no_nota VARCHAR,
+    p_toko_id UUID,
+    p_total_bayar DECIMAL,
+    p_jenis_pembayaran VARCHAR,
+    p_status_pembayaran VARCHAR,
+    p_tanggal_pengiriman DATE,
+    p_status_pengiriman VARCHAR,
+    p_catatan_pengiriman TEXT,
+    p_items JSONB
+) RETURNS UUID AS $$
+DECLARE
+    v_order_id UUID;
+    item_rec JSONB;
+    batch_rec RECORD;
+    v_req_qty INT;
+    v_deduct_qty INT;
+    v_prod_id UUID;
+BEGIN
+    -- 1. Insert order header
+    INSERT INTO public.orders (
+        no_nota, toko_id, total_bayar, jenis_pembayaran,
+        status_pembayaran, tanggal_pengiriman, status_pengiriman, catatan_pengiriman
+    ) VALUES (
+        p_no_nota, p_toko_id, p_total_bayar, p_jenis_pembayaran,
+        p_status_pembayaran, p_tanggal_pengiriman, p_status_pengiriman, p_catatan_pengiriman
+    ) RETURNING id INTO v_order_id;
+
+    -- 2. Insert order items & FIFO batch deduction
+    FOR item_rec IN SELECT * FROM jsonb_array_elements(p_items)
+    LOOP
+        v_prod_id := (item_rec->>'product_id')::UUID;
+        v_req_qty := (item_rec->>'jumlah')::INT;
+
+        -- Insert item record
+        INSERT INTO public.order_items (
+            order_id, product_id, jumlah, harga_deal, subtotal
+        ) VALUES (
+            v_order_id,
+            v_prod_id,
+            v_req_qty,
+            (item_rec->>'harga_deal')::DECIMAL,
+            (item_rec->>'subtotal')::DECIMAL
+        );
+
+        -- FIFO Deduction Loop across oldest batches
+        FOR batch_rec IN
+            SELECT id, sisa_stok FROM public.purchases
+            WHERE product_id = v_prod_id AND sisa_stok > 0
+            ORDER BY tanggal_beli ASC, created_at ASC
+        LOOP
+            IF v_req_qty <= 0 THEN
+                EXIT;
+            END IF;
+
+            IF batch_rec.sisa_stok >= v_req_qty THEN
+                v_deduct_qty := v_req_qty;
+            ELSE
+                v_deduct_qty := batch_rec.sisa_stok;
+            END IF;
+
+            UPDATE public.purchases
+            SET sisa_stok = sisa_stok - v_deduct_qty
+            WHERE id = batch_rec.id;
+
+            v_req_qty := v_req_qty - v_deduct_qty;
+        END LOOP;
+
+        -- Update overall product stock count
+        UPDATE public.products
+        SET stok = GREATEST(0, stok - (item_rec->>'jumlah')::INT),
+            updated_at = NOW()
+        WHERE id = v_prod_id;
+    END LOOP;
+
+    -- 3. Create initial Audit Log
+    INSERT INTO public.order_logs (order_id, catatan_perubahan)
+    VALUES (v_order_id, 'Nota ' || p_no_nota || ' berhasil dibuat (FIFO Batch Deduction)');
+
+    RETURN v_order_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- =============================================================================
 -- DATA INITIAL / SEED SAMPLE DATA
 -- =============================================================================
@@ -261,9 +396,8 @@ VALUES (
 -- Seed Sample Products
 INSERT INTO public.products (nama_produk, kode_sku, satuan, harga_modal, harga_normal, harga_minimum, stok, category) VALUES
 ('Minyak Goreng Kita 1L', 'MGK-1L', 'Dus (12 Pcs)', 160000, 185000, 172000, 50, 'Minyak & Lemak')
-
 ON CONFLICT (kode_sku) DO NOTHING;
 
 -- Seed Sample Tokos
 INSERT INTO public.tokos (nama_toko, lokasi_pasar, nama_pemilik, no_hp, lokasi_rumah, catatan) VALUES
-('Toko Berkah Jaya', 'Pasar Senen Block C-12', 'H. Ahmad', '081234567890', 'Jl. Kramat Pulo No. 45', 'Suka belanja minyak & gula')
+('Toko Berkah Jaya', 'Pasar Senen Block C-12', 'H. Ahmad', '081234567890', 'Jl. Kramat Pulo No. 45', 'Suka belanja minyak & gula');

@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
   ORDERS: 'pos_canvass_orders_cache',
   LOGS: 'pos_canvass_logs_cache',
   SETTINGS: 'pos_canvass_settings_cache',
+  PURCHASES: 'pos_canvass_purchases_cache',
 };
 
 export const DEFAULT_SETTINGS: StoreSettings = {
@@ -685,5 +686,145 @@ export class StoreManager {
     });
 
     return Object.values(loadMap);
+  }
+
+  // --- PURCHASES & FIFO BATCH MANAGEMENT ---
+  static async fetchPurchases(): Promise<import('@/types').Purchase[]> {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('purchases')
+          .select('*, product:products(*)')
+          .order('tanggal_beli', { ascending: false });
+
+        if (!error && data) {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(data));
+          }
+          return data as import('@/types').Purchase[];
+        } else if (error) {
+          console.warn('Supabase fetch purchases error:', error.message);
+        }
+      } catch (err) {
+        console.warn('Supabase purchases fetch warning:', err);
+      }
+    }
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(STORAGE_KEYS.PURCHASES);
+      if (stored) return JSON.parse(stored);
+    }
+    return [];
+  }
+
+  static getPurchasesCache(): import('@/types').Purchase[] {
+    if (typeof window === 'undefined') return [];
+    const stored = localStorage.getItem(STORAGE_KEYS.PURCHASES);
+    return stored ? JSON.parse(stored) : [];
+  }
+
+  static async savePurchase(purchaseData: {
+    product_id: string;
+    supplier_nama: string;
+    jumlah_masuk: number;
+    harga_modal_beli: number;
+    tanggal_beli: string;
+  }): Promise<import('@/types').Purchase | null> {
+    const totalBelanja = purchaseData.jumlah_masuk * purchaseData.harga_modal_beli;
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: rpcId, error: rpcErr } = await supabase.rpc('restock_product_rpc', {
+          p_product_id: purchaseData.product_id,
+          p_supplier_nama: purchaseData.supplier_nama || 'Supplier Utama',
+          p_jumlah_masuk: purchaseData.jumlah_masuk,
+          p_harga_modal_beli: purchaseData.harga_modal_beli,
+          p_tanggal_beli: purchaseData.tanggal_beli,
+        });
+
+        if (!rpcErr && rpcId) {
+          const refreshedPurchases = await this.fetchPurchases();
+          await this.fetchProducts();
+          return refreshedPurchases.find((p) => p.id === rpcId) || null;
+        } else if (rpcErr) {
+          console.warn('RPC restock_product_rpc fallback to direct query:', rpcErr);
+          const { data: directRes } = await supabase
+            .from('purchases')
+            .insert([{
+              product_id: purchaseData.product_id,
+              supplier_nama: purchaseData.supplier_nama,
+              jumlah_masuk: purchaseData.jumlah_masuk,
+              sisa_stok: purchaseData.jumlah_masuk,
+              harga_modal_beli: purchaseData.harga_modal_beli,
+              total_belanja: totalBelanja,
+              tanggal_beli: purchaseData.tanggal_beli,
+            }])
+            .select('*, product:products(*)')
+            .single();
+
+          if (directRes) {
+            await this.updateStock(purchaseData.product_id, purchaseData.jumlah_masuk);
+            return directRes as import('@/types').Purchase;
+          }
+        }
+      } catch (err) {
+        console.warn('Supabase save purchase error:', err);
+      }
+    }
+
+    await this.updateStock(purchaseData.product_id, purchaseData.jumlah_masuk);
+    const newPurchase: import('@/types').Purchase = {
+      id: 'purch-' + Date.now(),
+      product_id: purchaseData.product_id,
+      supplier_nama: purchaseData.supplier_nama,
+      jumlah_masuk: purchaseData.jumlah_masuk,
+      sisa_stok: purchaseData.jumlah_masuk,
+      harga_modal_beli: purchaseData.harga_modal_beli,
+      total_belanja: totalBelanja,
+      tanggal_beli: purchaseData.tanggal_beli,
+      created_at: new Date().toISOString(),
+    };
+    const cache = this.getPurchasesCache();
+    const updated = [newPurchase, ...cache];
+    localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(updated));
+    return newPurchase;
+  }
+
+  static getFifoAssetSummary(
+    products: Product[],
+    purchases: import('@/types').Purchase[],
+    orders: Order[]
+  ): import('@/types').FifoAssetSummary {
+    let totalAsetModalStok = 0;
+    if (purchases && purchases.length > 0) {
+      totalAsetModalStok = purchases.reduce((sum, p) => sum + (p.sisa_stok * p.harga_modal_beli), 0);
+    } else {
+      totalAsetModalStok = products.reduce((sum, p) => sum + (p.stok * p.harga_modal), 0);
+    }
+
+    const totalPotensiOmset = products.reduce((sum, p) => sum + (p.stok * p.harga_normal), 0);
+    const potensiMarginGudang = Math.max(0, totalPotensiOmset - totalAsetModalStok);
+
+    const completedOrders = orders.filter((o) => o.status_pembayaran === 'Lunas');
+    const totalLunasOmset = completedOrders.reduce((sum, o) => sum + o.total_bayar, 0);
+
+    let totalHppLunasFifo = 0;
+    completedOrders.forEach((o) => {
+      o.items?.forEach((item) => {
+        const prod = products.find((p) => p.id === item.product_id);
+        const modalPrice = prod ? prod.harga_modal : (item.harga_deal * 0.85);
+        totalHppLunasFifo += item.jumlah * modalPrice;
+      });
+    });
+
+    const labaBersihPasti = Math.max(0, totalLunasOmset - totalHppLunasFifo);
+
+    return {
+      totalAsetModalStok,
+      totalPotensiOmset,
+      potensiMarginGudang,
+      totalLunasOmset,
+      totalHppLunasFifo,
+      labaBersihPasti,
+    };
   }
 }

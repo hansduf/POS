@@ -97,3 +97,25 @@ export interface StoreSettings {
   bank_an: string;
   catatan_faktur: string;
 }
+
+export interface Purchase {
+  id: string;
+  product_id: string;
+  product?: Product;
+  supplier_nama: string;
+  jumlah_masuk: number;
+  sisa_stok: number;
+  harga_modal_beli: number;
+  total_belanja: number;
+  tanggal_beli: string;
+  created_at?: string;
+}
+
+export interface FifoAssetSummary {
+  totalAsetModalStok: number;
+  totalPotensiOmset: number;
+  potensiMarginGudang: number;
+  totalLunasOmset: number;
+  totalHppLunasFifo: number;
+  labaBersihPasti: number;
+}
