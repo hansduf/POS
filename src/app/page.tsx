@@ -109,6 +109,7 @@ export default function Home() {
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [isOwnerDrawModalOpen, setIsOwnerDrawModalOpen] = useState(false);
   const [isSoloFinanceOpen, setIsSoloFinanceOpen] = useState(false);
+  const [financeSubTab, setFinanceSubTab] = useState<'kantong' | 'statistik' | 'histori'>('kantong');
 
   const [isMounted, setIsMounted] = useState(false);
 
@@ -951,142 +952,328 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 5: POS KEUANGAN SOLO (3 KANTONG) */}
+        {/* TAB 5: POS KEUANGAN SOLO (3 KANTONG & STATISTIK) */}
         {activeTab === 'keuangan' && (
           <div className="space-y-3">
-            {/* Header Banner */}
-            <div className="bg-slate-900 text-white rounded-xl p-3.5 shadow-xs flex items-center justify-between">
-              <div>
-                <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">
-                  Kas Usaha Solo (Penjualan Lunas)
-                </span>
-                <h3 className="text-xl font-black text-white">
-                  {formatIDR(StoreManager.getSoloFinancialBuckets(orders, purchases, expenses, ownerDraws).totalOmsetLunas)}
-                </h3>
-                <p className="text-[10px] text-emerald-400 font-medium">Telah terbagi otomatis ke 3 Pos Keuangan Usaha</p>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] text-amber-300 font-bold bg-amber-400/20 px-2 py-1 rounded-lg border border-amber-400/30 inline-block">
-                  Solo Operator
-                </span>
-              </div>
+            {/* Header Sub-Tabs Selector Bar */}
+            <div className="bg-white border border-slate-200 rounded-xl p-1.5 shadow-xs flex items-center justify-between gap-1">
+              <button
+                onClick={() => setFinanceSubTab('kantong')}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-extrabold transition-all text-center flex items-center justify-center gap-1 ${
+                  financeSubTab === 'kantong'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                <span>💰 3 Pos Kantong</span>
+              </button>
+
+              <button
+                onClick={() => setFinanceSubTab('statistik')}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-extrabold transition-all text-center flex items-center justify-center gap-1 ${
+                  financeSubTab === 'statistik'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                <span>📊 Grafik & Analisis</span>
+              </button>
+
+              <button
+                onClick={() => setFinanceSubTab('histori')}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-extrabold transition-all text-center flex items-center justify-center gap-1 ${
+                  financeSubTab === 'histori'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                <span>📑 Histori</span>
+              </button>
             </div>
 
-            {/* 3 Pos Cards */}
-            {(() => {
-              const buckets = StoreManager.getSoloFinancialBuckets(orders, purchases, expenses, ownerDraws);
-              return (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  {/* Pos 1: Restock Supplier */}
-                  <div className="bg-white border border-emerald-300 rounded-xl p-3 shadow-xs space-y-1.5">
-                    <div className="flex items-center justify-between text-emerald-800">
-                      <span className="font-extrabold text-xs uppercase flex items-center gap-1">
-                        <Package className="w-3.5 h-3.5 text-emerald-600" />
-                        1. Belanja Stok (80%)
-                      </span>
-                    </div>
-                    <h4 className="font-black text-lg text-slate-900">{formatIDR(buckets.posModalBelanjaStok)}</h4>
-                    <p className="text-[10px] text-slate-500">Terpakai: {formatIDR(buckets.totalPembelianRestock)}</p>
-                    <button
-                      onClick={() => setIsPurchaseModalOpen(true)}
-                      className="w-full mt-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-lg text-xs flex items-center justify-center gap-1 shadow-xs active:scale-95 transition-all"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>+ Restock Supplier</span>
-                    </button>
+            {/* SUB-TAB 1: 3 POS KANTONG */}
+            {financeSubTab === 'kantong' && (
+              <div className="space-y-2.5 animate-fade-in">
+                {/* Header Banner */}
+                <div className="bg-slate-900 text-white rounded-xl p-3 shadow-xs flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">
+                      Kas Usaha Solo (Penjualan Lunas)
+                    </span>
+                    <h3 className="text-xl font-black text-white">
+                      {formatIDR(StoreManager.getSoloFinancialBuckets(orders, purchases, expenses, ownerDraws).totalOmsetLunas)}
+                    </h3>
                   </div>
-
-                  {/* Pos 2: Operasional Lapangan */}
-                  <div className="bg-white border border-amber-300 rounded-xl p-3 shadow-xs space-y-1.5">
-                    <div className="flex items-center justify-between text-amber-800">
-                      <span className="font-extrabold text-xs uppercase flex items-center gap-1">
-                        <Fuel className="w-3.5 h-3.5 text-amber-600" />
-                        2. Operasional (5%)
-                      </span>
-                    </div>
-                    <h4 className="font-black text-lg text-slate-900">{formatIDR(buckets.posOperasional)}</h4>
-                    <p className="text-[10px] text-slate-500">Terpakai: {formatIDR(buckets.totalPengeluaranOperasional)}</p>
-                    <button
-                      onClick={() => setIsExpenseModalOpen(true)}
-                      className="w-full mt-1 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-lg text-xs flex items-center justify-center gap-1 shadow-xs active:scale-95 transition-all"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>+ Catat Operasional</span>
-                    </button>
-                  </div>
-
-                  {/* Pos 3: Gaji Pribadi Owner */}
-                  <div className="bg-white border border-blue-300 rounded-xl p-3 shadow-xs space-y-1.5">
-                    <div className="flex items-center justify-between text-blue-800">
-                      <span className="font-extrabold text-xs uppercase flex items-center gap-1">
-                        <Wallet className="w-3.5 h-3.5 text-blue-600" />
-                        3. Gaji Saya (15%)
-                      </span>
-                    </div>
-                    <h4 className="font-black text-lg text-slate-900">{formatIDR(buckets.posGajiOwner)}</h4>
-                    <p className="text-[10px] text-slate-500">Sudah Ditarik: {formatIDR(buckets.totalPenarikanGaji)}</p>
-                    <button
-                      onClick={() => setIsOwnerDrawModalOpen(true)}
-                      className="w-full mt-1 py-1.5 bg-blue-700 hover:bg-blue-800 text-white font-extrabold rounded-lg text-xs flex items-center justify-center gap-1 shadow-xs active:scale-95 transition-all"
-                    >
-                      <ArrowDownRight className="w-3.5 h-3.5" />
-                      <span>+ Tarik Gaji Saya</span>
-                    </button>
+                  <div className="text-right">
+                    <span className="text-[10px] text-amber-300 font-bold bg-amber-400/20 px-2 py-0.5 rounded border border-amber-400/30">
+                      Solo Operator
+                    </span>
                   </div>
                 </div>
-              );
-            })()}
 
-            {/* Flat Divider Lists */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {/* Histori Operasional */}
-              <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
-                <h4 className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5 border-b border-slate-200 pb-1.5 uppercase">
-                  <Fuel className="w-3.5 h-3.5 text-amber-600" />
-                  Histori Operasional Lapangan ({expenses.length})
-                </h4>
-
-                {expenses.length === 0 ? (
-                  <p className="text-center py-6 text-[11px] text-slate-400 font-bold">Belum ada pengeluaran operasional</p>
-                ) : (
-                  <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
-                    {expenses.map((e) => (
-                      <div key={e.id} className="py-1.5 flex items-center justify-between text-xs">
-                        <div>
-                          <p className="font-bold text-slate-900">{e.kategori}</p>
-                          <p className="text-[10px] text-slate-500">{e.keterangan || '-'} ({e.tanggal})</p>
+                {/* 3 Compact Pos Cards */}
+                {(() => {
+                  const buckets = StoreManager.getSoloFinancialBuckets(orders, purchases, expenses, ownerDraws);
+                  return (
+                    <div className="space-y-2">
+                      {/* Pos 1: Belanja Stok */}
+                      <div className="bg-white border border-emerald-300 rounded-xl p-3 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5 text-emerald-800 font-extrabold text-xs uppercase">
+                            <Package className="w-4 h-4 text-emerald-600" />
+                            <span>1. Belanja Stok (80%)</span>
+                          </div>
+                          <h4 className="font-black text-lg text-slate-900 leading-tight">
+                            {formatIDR(buckets.posModalBelanjaStok)}
+                          </h4>
+                          <p className="text-[10px] text-slate-500 font-medium">
+                            Terpakai: {formatIDR(buckets.totalPembelianRestock)}
+                          </p>
                         </div>
-                        <span className="font-black text-amber-700">{formatIDR(e.nominal)}</span>
+                        <button
+                          onClick={() => setIsPurchaseModalOpen(true)}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-lg text-xs flex items-center justify-center gap-1 shadow-xs active:scale-95 transition-all shrink-0"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>+ Restock Supplier</span>
+                        </button>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
 
-              {/* Histori Gaji Owner */}
-              <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
-                <h4 className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5 border-b border-slate-200 pb-1.5 uppercase">
-                  <Wallet className="w-3.5 h-3.5 text-blue-600" />
-                  Histori Penarikan Gaji Saya ({ownerDraws.length})
-                </h4>
-
-                {ownerDraws.length === 0 ? (
-                  <p className="text-center py-6 text-[11px] text-slate-400 font-bold">Belum ada penarikan gaji pribadi</p>
-                ) : (
-                  <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
-                    {ownerDraws.map((d) => (
-                      <div key={d.id} className="py-1.5 flex items-center justify-between text-xs">
-                        <div>
-                          <p className="font-bold text-slate-900">{d.catatan || 'Tarik Gaji Owner'}</p>
-                          <p className="text-[10px] text-slate-500">{d.tanggal}</p>
+                      {/* Pos 2: Operasional Lapangan */}
+                      <div className="bg-white border border-amber-300 rounded-xl p-3 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5 text-amber-800 font-extrabold text-xs uppercase">
+                            <Fuel className="w-4 h-4 text-amber-600" />
+                            <span>2. Operasional Lapangan (5%)</span>
+                          </div>
+                          <h4 className="font-black text-lg text-slate-900 leading-tight">
+                            {formatIDR(buckets.posOperasional)}
+                          </h4>
+                          <p className="text-[10px] text-slate-500 font-medium">
+                            Terpakai: {formatIDR(buckets.totalPengeluaranOperasional)}
+                          </p>
                         </div>
-                        <span className="font-black text-blue-800">{formatIDR(d.nominal)}</span>
+                        <button
+                          onClick={() => setIsExpenseModalOpen(true)}
+                          className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-lg text-xs flex items-center justify-center gap-1 shadow-xs active:scale-95 transition-all shrink-0"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>+ Catat Operasional</span>
+                        </button>
                       </div>
-                    ))}
-                  </div>
-                )}
+
+                      {/* Pos 3: Gaji Pribadi Owner */}
+                      <div className="bg-white border border-blue-300 rounded-xl p-3 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5 text-blue-800 font-extrabold text-xs uppercase">
+                            <Wallet className="w-4 h-4 text-blue-600" />
+                            <span>3. Gaji Pribadi Saya (15%)</span>
+                          </div>
+                          <h4 className="font-black text-lg text-slate-900 leading-tight">
+                            {formatIDR(buckets.posGajiOwner)}
+                          </h4>
+                          <p className="text-[10px] text-slate-500 font-medium">
+                            Ditarik: {formatIDR(buckets.totalPenarikanGaji)}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setIsOwnerDrawModalOpen(true)}
+                          className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-extrabold rounded-lg text-xs flex items-center justify-center gap-1 shadow-xs active:scale-95 transition-all shrink-0"
+                        >
+                          <ArrowDownRight className="w-3.5 h-3.5" />
+                          <span>+ Tarik Gaji Saya</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
-            </div>
+            )}
+
+            {/* SUB-TAB 2: STATISTIK & GRAFIK */}
+            {financeSubTab === 'statistik' && (
+              <div className="space-y-3 animate-fade-in">
+                {/* Visual Allocation Bar */}
+                <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs space-y-2">
+                  <h4 className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5 uppercase">
+                    <TrendingUp className="w-4 h-4 text-emerald-700" />
+                    Proporsi Alokasi Kas Usaha (100%)
+                  </h4>
+
+                  {/* Progress Bar */}
+                  <div className="h-5 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner border border-slate-200">
+                    <div className="h-full bg-emerald-600 text-[9px] font-black text-white flex items-center justify-center" style={{ width: '80%' }}>
+                      80% Stok
+                    </div>
+                    <div className="h-full bg-amber-500 text-[9px] font-black text-white flex items-center justify-center" style={{ width: '5%' }}>
+                      5%
+                    </div>
+                    <div className="h-full bg-blue-600 text-[9px] font-black text-white flex items-center justify-center" style={{ width: '15%' }}>
+                      15% Gaji
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-1 text-[10px] font-extrabold text-center pt-1">
+                    <div className="text-emerald-700 bg-emerald-50 py-1 rounded-lg border border-emerald-200">📦 Stok: 80%</div>
+                    <div className="text-amber-700 bg-amber-50 py-1 rounded-lg border border-amber-200">⛽ Ops: 5%</div>
+                    <div className="text-blue-700 bg-blue-50 py-1 rounded-lg border border-blue-200">💵 Gaji: 15%</div>
+                  </div>
+                </div>
+
+                {/* Efficiency Stat Cards */}
+                {(() => {
+                  const buckets = StoreManager.getSoloFinancialBuckets(orders, purchases, expenses, ownerDraws);
+                  const expPercent = buckets.totalOmsetLunas > 0
+                    ? ((buckets.totalPengeluaranOperasional / buckets.totalOmsetLunas) * 100).toFixed(1)
+                    : '0';
+
+                  const bensinExpenses = expenses
+                    .filter((e) => e.kategori.includes('Bensin') || e.kategori.includes('BBM'))
+                    .reduce((sum, e) => sum + e.nominal, 0);
+
+                  const makanExpenses = expenses
+                    .filter((e) => e.kategori.includes('Makan'))
+                    .reduce((sum, e) => sum + e.nominal, 0);
+
+                  const tolExpenses = expenses
+                    .filter((e) => e.kategori.includes('Tol') || e.kategori.includes('Parkir'))
+                    .reduce((sum, e) => sum + e.nominal, 0);
+
+                  return (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase block">Rasio Operasional</span>
+                          <h4 className="text-base font-black text-amber-700">{expPercent}% Omset</h4>
+                          <p className="text-[10px] text-slate-500">Beban biaya jalan harian</p>
+                        </div>
+
+                        <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase block">Total Belanja Stok</span>
+                          <h4 className="text-base font-black text-emerald-800">{formatIDR(buckets.totalPembelianRestock)}</h4>
+                          <p className="text-[10px] text-slate-500">Restock supplier terbayar</p>
+                        </div>
+                      </div>
+
+                      {/* Expense Breakdown Category Cards */}
+                      <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
+                        <h5 className="font-extrabold text-slate-900 text-xs border-b border-slate-100 pb-1 uppercase">
+                          Rincian Biaya Operasional Lapangan
+                        </h5>
+
+                        <div className="space-y-2 text-xs">
+                          <div>
+                            <div className="flex justify-between items-center mb-0.5">
+                              <span className="font-bold text-slate-700 flex items-center gap-1">
+                                ⛽ Bensin & BBM Motor/Mobil
+                              </span>
+                              <span className="font-black text-slate-900">{formatIDR(bensinExpenses)}</span>
+                            </div>
+                            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                              <div
+                                className="bg-amber-500 h-full"
+                                style={{
+                                  width: `${buckets.totalPengeluaranOperasional > 0 ? (bensinExpenses / buckets.totalPengeluaranOperasional) * 100 : 0}%`,
+                                }}
+                              ></div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between items-center mb-0.5">
+                              <span className="font-bold text-slate-700 flex items-center gap-1">
+                                🍱 Uang Makan & Minum Lapangan
+                              </span>
+                              <span className="font-black text-slate-900">{formatIDR(makanExpenses)}</span>
+                            </div>
+                            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                              <div
+                                className="bg-amber-500 h-full"
+                                style={{
+                                  width: `${buckets.totalPengeluaranOperasional > 0 ? (makanExpenses / buckets.totalPengeluaranOperasional) * 100 : 0}%`,
+                                }}
+                              ></div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between items-center mb-0.5">
+                              <span className="font-bold text-slate-700 flex items-center gap-1">
+                                🅿️ Tol, Parkir & Retribusi Pasar
+                              </span>
+                              <span className="font-black text-slate-900">{formatIDR(tolExpenses)}</span>
+                            </div>
+                            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                              <div
+                                className="bg-amber-500 h-full"
+                                style={{
+                                  width: `${buckets.totalPengeluaranOperasional > 0 ? (tolExpenses / buckets.totalPengeluaranOperasional) * 100 : 0}%`,
+                                }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* SUB-TAB 3: HISTORI TRANSAKSI */}
+            {financeSubTab === 'histori' && (
+              <div className="space-y-2.5 animate-fade-in">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {/* Histori Operasional */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
+                    <h4 className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5 border-b border-slate-200 pb-1.5 uppercase">
+                      <Fuel className="w-3.5 h-3.5 text-amber-600" />
+                      Histori Operasional ({expenses.length})
+                    </h4>
+
+                    {expenses.length === 0 ? (
+                      <p className="text-center py-6 text-[11px] text-slate-400 font-bold">Belum ada pengeluaran operasional</p>
+                    ) : (
+                      <div className="divide-y divide-slate-100 max-h-64 overflow-y-auto">
+                        {expenses.map((e) => (
+                          <div key={e.id} className="py-2 flex items-center justify-between text-xs">
+                            <div>
+                              <p className="font-bold text-slate-900">{e.kategori}</p>
+                              <p className="text-[10px] text-slate-500">{e.keterangan || '-'} ({e.tanggal})</p>
+                            </div>
+                            <span className="font-black text-amber-700">{formatIDR(e.nominal)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Histori Penarikan Gaji */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
+                    <h4 className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5 border-b border-slate-200 pb-1.5 uppercase">
+                      <Wallet className="w-3.5 h-3.5 text-blue-600" />
+                      Histori Tarik Gaji Saya ({ownerDraws.length})
+                    </h4>
+
+                    {ownerDraws.length === 0 ? (
+                      <p className="text-center py-6 text-[11px] text-slate-400 font-bold">Belum ada penarikan gaji pribadi</p>
+                    ) : (
+                      <div className="divide-y divide-slate-100 max-h-64 overflow-y-auto">
+                        {ownerDraws.map((d) => (
+                          <div key={d.id} className="py-2 flex items-center justify-between text-xs">
+                            <div>
+                              <p className="font-bold text-slate-900">{d.catatan || 'Tarik Gaji Owner'}</p>
+                              <p className="text-[10px] text-slate-500">{d.tanggal}</p>
+                            </div>
+                            <span className="font-black text-blue-800">{formatIDR(d.nominal)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

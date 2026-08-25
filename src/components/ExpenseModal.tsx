@@ -117,8 +117,8 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
               </label>
               <input
                 type="number"
-                min="1"
-                step="1000"
+                min="0"
+                step="any"
                 value={nominal}
                 onChange={(e) => setNominal(Number(e.target.value))}
                 className="w-full px-3 py-1.5 bg-white border border-amber-400 rounded-xl text-slate-900 font-black focus:outline-none focus:border-amber-600"

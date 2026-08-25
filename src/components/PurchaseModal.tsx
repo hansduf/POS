@@ -188,6 +188,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
               <input
                 type="number"
                 min="0"
+                step="any"
                 value={hargaModalBeli}
                 onChange={(e) => setHargaModalBeli(Number(e.target.value))}
                 className="w-full px-3 py-1.5 bg-white border border-emerald-400 rounded-xl text-slate-900 font-black"
