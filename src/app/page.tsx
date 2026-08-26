@@ -127,6 +127,56 @@ export default function Home() {
   const [dashboardOrdersPeriod, setDashboardOrdersPeriod] = useState<import('@/types').TimePeriod>('all');
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
+  const [touchStartPos, setTouchStartPos] = useState<{ x: number; y: number } | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      setTouchStartPos({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+    }
+  };
+
+  const handleTouchEnd = (
+    e: React.TouchEvent,
+    onSwipeLeft: () => void,
+    onSwipeRight: () => void
+  ) => {
+    if (!touchStartPos || e.changedTouches.length === 0) return;
+
+    const touchEnd = e.changedTouches[0];
+    const deltaX = touchEnd.clientX - touchStartPos.x;
+    const deltaY = touchEnd.clientY - touchStartPos.y;
+
+    if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
+      if (deltaX < 0) {
+        onSwipeLeft();
+      } else {
+        onSwipeRight();
+      }
+    }
+    setTouchStartPos(null);
+  };
+
+  const financeSubTabsList: Array<'kantong' | 'statistik' | 'histori' | 'kalender' | 'tutup_buku'> = [
+    'kantong',
+    'statistik',
+    'histori',
+    'kalender',
+    'tutup_buku',
+  ];
+
+  const handleFinanceSwipeLeft = () => {
+    const currentIdx = financeSubTabsList.indexOf(financeSubTab);
+    if (currentIdx < financeSubTabsList.length - 1) {
+      setFinanceSubTab(financeSubTabsList[currentIdx + 1]);
+    }
+  };
+
+  const handleFinanceSwipeRight = () => {
+    const currentIdx = financeSubTabsList.indexOf(financeSubTab);
+    if (currentIdx > 0) {
+      setFinanceSubTab(financeSubTabsList[currentIdx - 1]);
+    }
+  };
 
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
@@ -896,7 +946,17 @@ _Sistem Kasir Distributor POS Canvassing_`;
 
         {/* TAB 3: STOK BARANG */}
         {activeTab === 'stok' && (
-          <div className="space-y-3">
+          <div
+            className="space-y-3"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={(e) =>
+              handleTouchEnd(
+                e,
+                () => setStockSubTab('histori_retur'),
+                () => setStockSubTab('produk')
+              )
+            }
+          >
             {/* Header */}
             <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs flex flex-wrap items-center justify-between gap-2">
               <div>
@@ -954,27 +1014,28 @@ _Sistem Kasir Distributor POS Canvassing_`;
               </div>
             </div>
 
-            {/* Sub-tab Navigation for Tab Stok */}
-            <div className="flex items-center gap-1.5 border-b border-slate-200 pb-2 overflow-x-auto scrollbar-none">
+            {/* Clean Underline Sub-tab Navigation for Tab Stok (Aligned with Sub-Tab Keuangan) */}
+            <div className="flex items-center border-b border-slate-200 text-xs overflow-x-auto scrollbar-none mb-1 gap-1">
               <button
                 onClick={() => setStockSubTab('produk')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all border shrink-0 ${
+                className={`py-2 px-3 font-bold transition-all relative whitespace-nowrap text-center ${
                   stockSubTab === 'produk'
-                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                    ? 'text-emerald-700 font-extrabold border-b-2 border-emerald-600 -mb-px'
+                    : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                📦 Katalog & Stok Produk ({products.length})
+                📦 Katalog Produk ({products.length})
               </button>
+
               <button
                 onClick={() => setStockSubTab('histori_retur')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all border shrink-0 ${
+                className={`py-2 px-3 font-bold transition-all relative whitespace-nowrap text-center ${
                   stockSubTab === 'histori_retur'
-                    ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                    ? 'text-emerald-700 font-extrabold border-b-2 border-emerald-600 -mb-px'
+                    : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                🔄 Histori Retur & Klaim Pasar ({productReturns.length})
+                🔄 Histori Retur ({productReturns.length})
               </button>
             </div>
 
@@ -1217,7 +1278,13 @@ _Sistem Kasir Distributor POS Canvassing_`;
 
         {/* TAB 5: POS KEUANGAN SOLO (3 KANTONG, GRAFIK, HISTORI, KALENDER, TUTUP BUKU) */}
         {activeTab === 'keuangan' && (
-          <div className="space-y-3">
+          <div
+            className="space-y-3"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={(e) =>
+              handleTouchEnd(e, handleFinanceSwipeLeft, handleFinanceSwipeRight)
+            }
+          >
             {/* Clean Underline Sub-Tabs Header (No Card) */}
             <div className="flex items-center border-b border-slate-200 text-xs overflow-x-auto scrollbar-none mb-1 gap-1">
               <button
