@@ -417,9 +417,9 @@ export class StoreManager {
     return cachedOrders;
   }
 
-  static async syncOfflineQueue(): Promise<{ syncedOrders: number; syncedExpenses: number; syncedDraws: number; syncedPurchases: number }> {
+  static async syncOfflineQueue(): Promise<{ syncedOrders: number; syncedExpenses: number; syncedDraws: number; syncedPurchases: number; syncedReturns: number }> {
     if (typeof window === 'undefined' || !navigator.onLine || !isSupabaseConfigured || !supabase) {
-      return { syncedOrders: 0, syncedExpenses: 0, syncedDraws: 0, syncedPurchases: 0 };
+      return { syncedOrders: 0, syncedExpenses: 0, syncedDraws: 0, syncedPurchases: 0, syncedReturns: 0 };
     }
 
     let syncedOrders = 0;
