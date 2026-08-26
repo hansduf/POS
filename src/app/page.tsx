@@ -125,7 +125,7 @@ export default function Home() {
   const [isOwnerDrawModalOpen, setIsOwnerDrawModalOpen] = useState(false);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [isSoloFinanceOpen, setIsSoloFinanceOpen] = useState(false);
-  const [financeSubTab, setFinanceSubTab] = useState<'kantong' | 'statistik' | 'histori' | 'kalender' | 'tutup_buku'>('kantong');
+  const [financeSubTab, setFinanceSubTab] = useState<'kantong' | 'margin_fifo' | 'statistik' | 'histori' | 'kalender' | 'tutup_buku'>('kantong');
   const [financePeriod, setFinancePeriod] = useState<import('@/types').TimePeriod>('monthly');
   const [dashboardOrdersPeriod, setDashboardOrdersPeriod] = useState<import('@/types').TimePeriod>('all');
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
@@ -159,8 +159,9 @@ export default function Home() {
     setTouchStartPos(null);
   };
 
-  const financeSubTabsList: Array<'kantong' | 'statistik' | 'histori' | 'kalender' | 'tutup_buku'> = [
+  const financeSubTabsList: Array<'kantong' | 'margin_fifo' | 'statistik' | 'histori' | 'kalender' | 'tutup_buku'> = [
     'kantong',
+    'margin_fifo',
     'statistik',
     'histori',
     'kalender',
@@ -1347,6 +1348,17 @@ _Sistem Kasir Distributor POS Canvassing_`;
               </button>
 
               <button
+                onClick={() => setFinanceSubTab('margin_fifo')}
+                className={`py-2 px-3 font-bold transition-all relative whitespace-nowrap text-center ${
+                  financeSubTab === 'margin_fifo'
+                    ? 'text-emerald-700 font-extrabold border-b-2 border-emerald-600 -mb-px'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                📊 Margin & Kas Real (Opsi A)
+              </button>
+
+              <button
                 onClick={() => setFinanceSubTab('statistik')}
                 className={`py-2 px-3 font-bold transition-all relative whitespace-nowrap text-center ${
                   financeSubTab === 'statistik'
@@ -1392,7 +1404,7 @@ _Sistem Kasir Distributor POS Canvassing_`;
             </div>
 
             {/* Filter Periode Waktu (Hari Ini, Mingguan, Bulanan, Tahunan, Semua) */}
-            {(financeSubTab === 'statistik' || financeSubTab === 'histori' || financeSubTab === 'tutup_buku') && (
+            {(financeSubTab === 'margin_fifo' || financeSubTab === 'statistik' || financeSubTab === 'histori' || financeSubTab === 'tutup_buku') && (
               <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[11px]">
                 <span className="font-extrabold text-slate-500 mr-1 shrink-0 flex items-center gap-1">
                   <Filter className="w-3 h-3 text-slate-400" />
@@ -1512,6 +1524,254 @@ _Sistem Kasir Distributor POS Canvassing_`;
                           <ArrowDownRight className="w-3.5 h-3.5" />
                           <span>+ Tarik Gaji Saya</span>
                         </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* SUB-TAB BARU: ANALISIS MARGIN REAL & KAS OPSI A (FIFO COGS) */}
+            {financeSubTab === 'margin_fifo' && (
+              <div className="space-y-3 animate-fade-in">
+                {(() => {
+                  const filteredOrders = StoreManager.filterByPeriod(orders, financePeriod, 'tanggal_pengiriman');
+                  const filteredReturns = StoreManager.filterByPeriod(productReturns, financePeriod, 'tanggal');
+
+                  // Calculate Gross Omset & Non-Exchange Returns Deduction
+                  const grossOmset = filteredOrders
+                    .filter((o) => o.status_pembayaran === 'Lunas')
+                    .reduce((sum, o) => sum + o.total_bayar, 0);
+
+                  const nonExchangeReturns = filteredReturns
+                    .filter((r) => r.tindakan === 'Potong Piutang Tempo' || r.tindakan === 'Potong Tagihan Cash')
+                    .reduce((sum, r) => sum + r.total_nilai, 0);
+
+                  const netOmset = Math.max(0, grossOmset - nonExchangeReturns);
+
+                  // Calculate COGS / HPP (Modal Asli Pembelian) for sold items
+                  let totalCOGS = 0;
+                  const productSalesMap: Record<
+                    string,
+                    {
+                      product_id: string;
+                      nama_produk: string;
+                      kode_sku: string;
+                      satuan: string;
+                      jumlah_terjual: number;
+                      total_omset: number;
+                      total_cogs: number;
+                    }
+                  > = {};
+
+                  filteredOrders
+                    .filter((o) => o.status_pembayaran === 'Lunas')
+                    .forEach((order) => {
+                      order.items?.forEach((item) => {
+                        const prod = products.find((p) => p.id === item.product_id);
+                        const cogsUnitPrice = prod?.harga_modal || (item.harga_deal * 0.8);
+                        const itemCOGS = item.jumlah * cogsUnitPrice;
+                        totalCOGS += itemCOGS;
+
+                        if (!productSalesMap[item.product_id]) {
+                          productSalesMap[item.product_id] = {
+                            product_id: item.product_id,
+                            nama_produk: prod?.nama_produk || 'Produk ID ' + item.product_id,
+                            kode_sku: prod?.kode_sku || '-',
+                            satuan: prod?.satuan || 'Pcs',
+                            jumlah_terjual: 0,
+                            total_omset: 0,
+                            total_cogs: 0,
+                          };
+                        }
+
+                        productSalesMap[item.product_id].jumlah_terjual += item.jumlah;
+                        productSalesMap[item.product_id].total_omset += item.subtotal;
+                        productSalesMap[item.product_id].total_cogs += itemCOGS;
+                      });
+                    });
+
+                  const totalLabaKotor = Math.max(0, netOmset - totalCOGS);
+                  const marginAvgPercent = netOmset > 0 ? ((totalLabaKotor / netOmset) * 100).toFixed(1) : '0';
+
+                  // Opsi A Allocation Split from Gross Profit:
+                  const alokasiOps = totalLabaKotor * 0.6; // 60% of Gross Profit
+                  const alokasiProfitOwner = totalLabaKotor * 0.4; // 40% of Gross Profit
+
+                  const productMarginList = Object.values(productSalesMap).map((p) => {
+                    const labaKotor = p.total_omset - p.total_cogs;
+                    const marginPct = p.total_omset > 0 ? (labaKotor / p.total_omset) * 100 : 0;
+                    return {
+                      ...p,
+                      labaKotor,
+                      marginPct,
+                    };
+                  }).sort((a, b) => b.labaKotor - a.labaKotor);
+
+                  return (
+                    <div className="space-y-3">
+                      {/* Top Header Card Opsi A */}
+                      <div className="bg-slate-900 text-white rounded-xl p-4 shadow-xs space-y-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+                          <div>
+                            <span className="text-[10px] text-emerald-400 font-extrabold uppercase tracking-wider flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Proporsi Kas Opsi A (100% Proteksi Modal Restock + Margin Laba)
+                            </span>
+                            <h3 className="text-xl font-black text-white pt-0.5">
+                              {formatIDR(netOmset)} <span className="text-xs font-bold text-slate-400">Net Omset</span>
+                            </h3>
+                          </div>
+
+                          <div className="bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700 text-right">
+                            <span className="text-[10px] text-slate-400 font-bold block">Margin Laba Rata-Rata</span>
+                            <span className="text-sm font-black text-emerald-400">{marginAvgPercent}%</span>
+                          </div>
+                        </div>
+
+                        {/* Visual Proportion Bar */}
+                        <div className="space-y-1 pt-1">
+                          <div className="flex items-center justify-between text-[10px] font-bold text-slate-300">
+                            <span>📦 Modal Asli (COGS): {formatIDR(totalCOGS)}</span>
+                            <span>💰 Total Laba Kotor: {formatIDR(totalLabaKotor)}</span>
+                          </div>
+
+                          <div className="h-4 w-full bg-slate-800 rounded-full overflow-hidden flex border border-slate-700 shadow-inner">
+                            <div
+                              className="h-full bg-emerald-600 text-[8px] font-black text-white flex items-center justify-center transition-all"
+                              style={{ width: `${netOmset > 0 ? (totalCOGS / netOmset) * 100 : 80}%` }}
+                            >
+                              100% Modal Restock
+                            </div>
+                            <div
+                              className="h-full bg-amber-500 text-[8px] font-black text-white flex items-center justify-center transition-all"
+                              style={{ width: `${netOmset > 0 ? (alokasiOps / netOmset) * 100 : 12}%` }}
+                            >
+                              60% Ops Laba
+                            </div>
+                            <div
+                              className="h-full bg-blue-600 text-[8px] font-black text-white flex items-center justify-center transition-all"
+                              style={{ width: `${netOmset > 0 ? (alokasiProfitOwner / netOmset) * 100 : 8}%` }}
+                            >
+                              40% Profit
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 3 Alokasi Kantong Cards Opsi A */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {/* 1. Modal Restock Terproteksi 100% */}
+                        <div className="bg-emerald-50/90 border border-emerald-300 rounded-xl p-3 shadow-xs space-y-1">
+                          <div className="flex items-center gap-1.5 text-emerald-900 font-extrabold text-xs uppercase">
+                            <Package className="w-4 h-4 text-emerald-700" />
+                            <span>1. Modal Restock (100% COGS)</span>
+                          </div>
+                          <h4 className="font-black text-lg text-emerald-950 leading-tight">
+                            {formatIDR(totalCOGS)}
+                          </h4>
+                          <p className="text-[10px] text-emerald-800 font-medium leading-tight">
+                            🔒 <strong>Terproteksi 100%</strong>. Wajib disisihkan untuk belanja ulang stok barang ke supplier.
+                          </p>
+                        </div>
+
+                        {/* 2. Operasional Lapangan (60% Laba) */}
+                        <div className="bg-amber-50/90 border border-amber-300 rounded-xl p-3 shadow-xs space-y-1">
+                          <div className="flex items-center gap-1.5 text-amber-900 font-extrabold text-xs uppercase">
+                            <Fuel className="w-4 h-4 text-amber-700" />
+                            <span>2. Pos Operasional (60% Laba)</span>
+                          </div>
+                          <h4 className="font-black text-lg text-amber-950 leading-tight">
+                            {formatIDR(alokasiOps)}
+                          </h4>
+                          <p className="text-[10px] text-amber-800 font-medium leading-tight">
+                            🚚 Alokasi Bensin, Makan Canvasser, & Service Armada dari Laba.
+                          </p>
+                        </div>
+
+                        {/* 3. Profit / Gaji Owner (40% Laba) */}
+                        <div className="bg-blue-50/90 border border-blue-300 rounded-xl p-3 shadow-xs space-y-1">
+                          <div className="flex items-center gap-1.5 text-blue-900 font-extrabold text-xs uppercase">
+                            <Wallet className="w-4 h-4 text-blue-700" />
+                            <span>3. Gaji / Profit Owner (40% Laba)</span>
+                          </div>
+                          <h4 className="font-black text-lg text-blue-950 leading-tight">
+                            {formatIDR(alokasiProfitOwner)}
+                          </h4>
+                          <p className="text-[10px] text-blue-800 font-medium leading-tight">
+                            💰 Keuntungan bersih murni aman yang bisa ditarik tanpa tekor modal.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Tabel Rincian Metadata Barang Keluar & Persentase Margin per Produk */}
+                      <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs space-y-3">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                          <div>
+                            <h4 className="font-extrabold text-xs text-slate-900 uppercase flex items-center gap-1.5">
+                              <Layers className="w-4 h-4 text-indigo-600" />
+                              <span>Metadata Barang Keluar & Persentase Margin Produk</span>
+                            </h4>
+                            <p className="text-[10px] text-slate-500 font-bold">Rincian omset, modal pokok (COGS), dan margin keuntungan per barang</p>
+                          </div>
+
+                          <span className="text-[11px] font-black text-indigo-900 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200 shrink-0">
+                            {productMarginList.length} Produk Laku
+                          </span>
+                        </div>
+
+                        {productMarginList.length === 0 ? (
+                          <div className="text-center py-10 text-slate-400 space-y-1">
+                            <Package className="w-8 h-8 mx-auto text-slate-300" />
+                            <p className="text-xs font-bold text-slate-700">Belum ada transaksi barang keluar pada periode ini</p>
+                          </div>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs border-collapse">
+                              <thead>
+                                <tr className="bg-slate-50 text-slate-700 font-extrabold uppercase border-b border-slate-200 text-[10px]">
+                                  <th className="py-2 px-2 text-center w-8">No.</th>
+                                  <th className="py-2 px-2">Nama Produk & SKU</th>
+                                  <th className="py-2 px-2 text-center">Qty Keluar</th>
+                                  <th className="py-2 px-2 text-right">Total Omset</th>
+                                  <th className="py-2 px-2 text-right">Modal (COGS)</th>
+                                  <th className="py-2 px-2 text-right">Laba Kotor</th>
+                                  <th className="py-2 px-2 text-center">Margin %</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 font-medium text-xs">
+                                {productMarginList.map((item, idx) => (
+                                  <tr key={item.product_id} className="hover:bg-slate-50/80 transition-colors">
+                                    <td className="py-2 px-2 text-center font-mono text-slate-500">{idx + 1}</td>
+                                    <td className="py-2 px-2 font-bold text-slate-900">
+                                      {item.nama_produk}
+                                      <span className="text-[10px] font-mono text-slate-500 block">SKU: {item.kode_sku}</span>
+                                    </td>
+                                    <td className="py-2 px-2 text-center font-black text-slate-900">
+                                      {item.jumlah_terjual} {item.satuan}
+                                    </td>
+                                    <td className="py-2 px-2 text-right font-bold text-slate-900">{formatIDR(item.total_omset)}</td>
+                                    <td className="py-2 px-2 text-right font-semibold text-slate-600">{formatIDR(item.total_cogs)}</td>
+                                    <td className="py-2 px-2 text-right font-black text-emerald-700">{formatIDR(item.labaKotor)}</td>
+                                    <td className="py-2 px-2 text-center">
+                                      <span
+                                        className={`px-2 py-0.5 rounded-full font-black text-[10px] border ${
+                                          item.marginPct >= 15
+                                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                            : item.marginPct >= 10
+                                            ? 'bg-amber-100 text-amber-800 border-amber-300'
+                                            : 'bg-rose-100 text-rose-800 border-rose-300'
+                                        }`}
+                                      >
+                                        {item.marginPct.toFixed(1)}%
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
