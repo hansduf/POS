@@ -19,6 +19,7 @@ import { OwnerDrawModal } from '@/components/OwnerDrawModal';
 import { SoloFinancialDashboardModal } from '@/components/SoloFinancialDashboardModal';
 import { ReturnModal } from '@/components/ReturnModal';
 import { NotaReturModal } from '@/components/NotaReturModal';
+import { TokoDetailModal } from '@/components/TokoDetailModal';
 import { StoreManager, DEFAULT_SETTINGS, getLocalTodayStr } from '@/lib/store';
 import {
   Toko,
@@ -117,6 +118,7 @@ export default function Home() {
   const [ownerDraws, setOwnerDraws] = useState<OwnerDraw[]>([]);
   const [productReturns, setProductReturns] = useState<ProductReturn[]>([]);
   const [selectedNotaRetur, setSelectedNotaRetur] = useState<ProductReturn | null>(null);
+  const [selectedTokoDetail, setSelectedTokoDetail] = useState<TokoPerformance | null>(null);
   const [stockSubTab, setStockSubTab] = useState<'produk' | 'histori_retur'>('produk');
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [isOwnerDrawModalOpen, setIsOwnerDrawModalOpen] = useState(false);
@@ -1269,6 +1271,7 @@ _Sistem Kasir Distributor POS Canvassing_`;
                       setSelectedTokoId(tokoId);
                       setIsReturnModalOpen(true);
                     }}
+                    onOpenDetail={(t) => setSelectedTokoDetail(t)}
                   />
                 ))
               )}
@@ -2432,6 +2435,30 @@ _Sistem Kasir Distributor POS Canvassing_`;
         tokos={tokos}
         products={products}
         settings={storeSettings}
+      />
+
+      {/* Toko Full Detail Modal */}
+      <TokoDetailModal
+        isOpen={!!selectedTokoDetail}
+        onClose={() => setSelectedTokoDetail(null)}
+        toko={selectedTokoDetail}
+        orders={orders}
+        returns={productReturns}
+        products={products}
+        onSelectForOrder={(t: Toko) => {
+          setSelectedTokoId(t.id);
+          setActiveTab('order');
+        }}
+        onOpenReturnModal={(tokoId: string) => {
+          setSelectedTokoId(tokoId);
+          setIsReturnModalOpen(true);
+        }}
+        onEditToko={(t: Toko) => {
+          setEditingToko(t);
+          setIsTokoModalOpen(true);
+        }}
+        onOpenNota={(ord: Order) => setSelectedNota(ord)}
+        onOpenNotaRetur={(ret: ProductReturn) => setSelectedNotaRetur(ret)}
       />
     </div>
   );

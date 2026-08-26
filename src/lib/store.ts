@@ -1424,10 +1424,26 @@ export class StoreManager {
           .order('tanggal', { ascending: false });
 
         if (!error && data) {
-          if (typeof window !== 'undefined') {
-            localStorage.setItem(STORAGE_KEYS.RETURNS, JSON.stringify(data));
+          const queueStr = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.QUEUE_RETURNS) : null;
+          let merged = data as import('@/types').ProductReturn[];
+          if (queueStr) {
+            try {
+              const queue: import('@/types').ProductReturn[] = JSON.parse(queueStr);
+              const existingIds = new Set(merged.map((r) => r.id));
+              queue.forEach((q) => {
+                if (!existingIds.has(q.id)) {
+                  merged.unshift(q);
+                }
+              });
+            } catch (err) {
+              console.warn('Queue returns parse warning:', err);
+            }
           }
-          return data as import('@/types').ProductReturn[];
+
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEYS.RETURNS, JSON.stringify(merged));
+          }
+          return merged;
         }
       } catch (err) {
         console.warn('Supabase fetch returns error:', err);
@@ -1474,6 +1490,29 @@ export class StoreManager {
     // If Tukar Barang Baru, deduct replacement product stock automatically
     if (returnData.tindakan === 'Tukar Barang Baru') {
       await this.updateStock(returnData.product_id, -returnData.jumlah);
+    }
+
+    // Automatically create corresponding Order entry so it appears in Tab Pengiriman
+    try {
+      await this.createOrder({
+        toko_id: returnData.toko_id,
+        total_bayar: returnData.total_nilai,
+        jenis_pembayaran: `Retur (${returnData.tindakan})`,
+        status_pembayaran: 'Lunas',
+        tanggal_pengiriman: returnData.tanggal,
+        status_pengiriman: 'Terkirim',
+        catatan_pengiriman: `[RETUR BARANG] ${returnData.alasan}: ${returnData.catatan || ''}`,
+        items: [
+          {
+            product_id: returnData.product_id,
+            jumlah: returnData.jumlah,
+            harga_deal: returnData.harga_nilai,
+            subtotal: returnData.total_nilai,
+          },
+        ],
+      });
+    } catch (err) {
+      console.warn('Error creating corresponding order for return:', err);
     }
 
     if (isSupabaseConfigured && supabase) {

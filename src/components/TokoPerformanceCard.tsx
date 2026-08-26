@@ -28,6 +28,7 @@ interface TokoPerformanceCardProps {
   onEditToko?: (toko: TokoPerformance) => void;
   onOpenNota?: (order: Order) => void;
   onOpenReturnModal?: (tokoId: string) => void;
+  onOpenDetail?: (toko: TokoPerformance) => void;
 }
 
 export const TokoPerformanceCard: React.FC<TokoPerformanceCardProps> = ({
@@ -37,6 +38,7 @@ export const TokoPerformanceCard: React.FC<TokoPerformanceCardProps> = ({
   onEditToko,
   onOpenNota,
   onOpenReturnModal,
+  onOpenDetail,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -176,13 +178,22 @@ export const TokoPerformanceCard: React.FC<TokoPerformanceCardProps> = ({
             </span>
           </div>
 
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-extrabold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 ml-1"
-          >
-            <span>{isExpanded ? 'Sembunyikan' : 'Rincian Pesanan'}</span>
-            {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          </button>
+          {onOpenDetail ? (
+            <button
+              onClick={() => onOpenDetail(toko)}
+              className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-extrabold text-slate-900 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-lg border border-emerald-300 ml-1 shadow-xs"
+            >
+              <span>🔍 Detail Toko</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-extrabold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 ml-1"
+            >
+              <span>{isExpanded ? 'Sembunyikan' : 'Rincian Pesanan'}</span>
+              {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+          )}
         </div>
       </div>
 
