@@ -17,6 +17,7 @@ import { FifoStockDashboardModal } from '@/components/FifoStockDashboardModal';
 import { ExpenseModal } from '@/components/ExpenseModal';
 import { OwnerDrawModal } from '@/components/OwnerDrawModal';
 import { SoloFinancialDashboardModal } from '@/components/SoloFinancialDashboardModal';
+import { ReturnModal } from '@/components/ReturnModal';
 import { StoreManager, DEFAULT_SETTINGS, getLocalTodayStr } from '@/lib/store';
 import {
   Toko,
@@ -33,6 +34,7 @@ import {
   Expense,
   OwnerDraw,
   ExpenseKategori,
+  ProductReturn,
 } from '@/types';
 import {
   Plus,
@@ -109,11 +111,13 @@ export default function Home() {
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [isFifoDashboardOpen, setIsFifoDashboardOpen] = useState(false);
 
-  // Expenses, Owner Draws & Solo Finance States
+  // Expenses, Owner Draws, Returns & Solo Finance States
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [ownerDraws, setOwnerDraws] = useState<OwnerDraw[]>([]);
+  const [productReturns, setProductReturns] = useState<ProductReturn[]>([]);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [isOwnerDrawModalOpen, setIsOwnerDrawModalOpen] = useState(false);
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [isSoloFinanceOpen, setIsSoloFinanceOpen] = useState(false);
   const [financeSubTab, setFinanceSubTab] = useState<'kantong' | 'statistik' | 'histori' | 'kalender' | 'tutup_buku'>('kantong');
   const [financePeriod, setFinancePeriod] = useState<import('@/types').TimePeriod>('monthly');
@@ -183,6 +187,7 @@ export default function Home() {
         loadedPurchases,
         loadedExpenses,
         loadedOwnerDraws,
+        loadedReturns,
       ] = await Promise.all([
         StoreManager.fetchTokos(),
         StoreManager.fetchProducts(),
@@ -191,6 +196,7 @@ export default function Home() {
         StoreManager.fetchPurchases(),
         StoreManager.fetchExpenses(),
         StoreManager.fetchOwnerDraws(),
+        StoreManager.fetchReturns(),
       ]);
 
       setTokos(loadedTokos);
@@ -200,6 +206,7 @@ export default function Home() {
       setPurchases(loadedPurchases);
       setExpenses(loadedExpenses);
       setOwnerDraws(loadedOwnerDraws);
+      setProductReturns(loadedReturns);
 
       if (loadedTokos.length > 0 && !selectedTokoId) {
         setSelectedTokoId(loadedTokos[0].id);
@@ -209,6 +216,11 @@ export default function Home() {
     } finally {
       setIsLoadingData(false);
     }
+  };
+
+  const handleSaveReturn = async (returnData: Omit<ProductReturn, 'id' | 'created_at'>) => {
+    await StoreManager.saveReturn(returnData);
+    await refreshData();
   };
 
   const handleSavePurchase = async (purchaseData: {
@@ -909,6 +921,14 @@ _Sistem Kasir Distributor POS Canvassing_`;
                 </button>
 
                 <button
+                  onClick={() => setIsReturnModalOpen(true)}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-lg text-xs shadow-xs"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>+ Retur Barang</span>
+                </button>
+
+                <button
                   onClick={() => {
                     setEditingProduct({
                       nama_produk: '',
@@ -997,6 +1017,55 @@ _Sistem Kasir Distributor POS Canvassing_`;
                     </div>
                   </div>
                 ))
+              )}
+            </div>
+
+            {/* Histori Transaksi Retur Barang Pasar Card */}
+            <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <h3 className="font-extrabold text-xs text-slate-900 flex items-center gap-1.5 uppercase">
+                  <RefreshCw className="w-4 h-4 text-amber-600" />
+                  <span>Histori Retur & Klaim Barang Pasar ({productReturns.length})</span>
+                </h3>
+                <span className="text-[11px] font-black text-amber-900 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
+                  Total Nilai: {formatIDR(productReturns.reduce((sum, r) => sum + r.total_nilai, 0))}
+                </span>
+              </div>
+
+              {productReturns.length === 0 ? (
+                <div className="text-center py-6 text-slate-400 space-y-1">
+                  <RefreshCw className="w-6 h-6 mx-auto text-slate-300" />
+                  <p className="text-xs font-bold text-slate-600">Belum ada riwayat transaksi retur barang</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100 text-xs">
+                  {productReturns.slice(0, 10).map((ret) => {
+                    const toko = tokos.find((t) => t.id === ret.toko_id) || ret.toko;
+                    const prod = products.find((p) => p.id === ret.product_id) || ret.product;
+                    return (
+                      <div key={ret.id} className="py-2 flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-extrabold text-slate-900">{toko?.nama_toko || 'Toko Pelanggan'}</span>
+                            <span className="text-[10px] font-mono text-slate-400">({ret.tanggal})</span>
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300">
+                              {ret.alasan}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-600 font-bold mt-0.5">
+                            {prod?.nama_produk || 'Produk'} • {ret.jumlah} {prod?.satuan || 'Pcs'} @ {formatIDR(ret.harga_nilai)}
+                          </p>
+                          <p className="text-[10px] text-teal-800 font-extrabold mt-0.5">
+                            Solusi: {ret.tindakan} {ret.catatan ? `• ${ret.catatan}` : ''}
+                          </p>
+                        </div>
+                        <span className="font-black text-amber-900 shrink-0 text-xs">
+                          {formatIDR(ret.total_nilai)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
           </div>
@@ -2215,6 +2284,16 @@ _Sistem Kasir Distributor POS Canvassing_`;
           </div>
         </div>
       )}
+
+      {/* Return Modal */}
+      <ReturnModal
+        isOpen={isReturnModalOpen}
+        onClose={() => setIsReturnModalOpen(false)}
+        tokos={tokos}
+        products={products}
+        defaultTokoId={selectedTokoId}
+        onSaveReturn={handleSaveReturn}
+      />
     </div>
   );
 }

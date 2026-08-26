@@ -156,3 +156,31 @@ export interface SoloFinancialBuckets {
 
 export type TimePeriod = 'today' | 'weekly' | 'monthly' | 'yearly' | 'all';
 
+export type ReturnReason =
+  | 'Bocor / Rusak'
+  | 'Kadaluarsa / Expired'
+  | 'Cacat Pabrik'
+  | 'Salah Kirim'
+  | 'Lainnya';
+
+export type ReturnAction =
+  | 'Tukar Barang Baru'
+  | 'Potong Piutang Tempo'
+  | 'Potong Tagihan Cash';
+
+export interface ProductReturn {
+  id: string;
+  toko_id: string;
+  toko?: Toko;
+  product_id: string;
+  product?: Product;
+  jumlah: number;
+  harga_nilai: number;
+  total_nilai: number;
+  alasan: ReturnReason | string;
+  tindakan: ReturnAction | string;
+  catatan?: string;
+  tanggal: string;
+  created_at?: string;
+}
+

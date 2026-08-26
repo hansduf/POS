@@ -25,11 +25,13 @@ const STORAGE_KEYS = {
   PURCHASES: 'pos_canvass_purchases_cache',
   EXPENSES: 'pos_canvass_expenses_cache',
   OWNER_DRAWS: 'pos_canvass_owner_draws_cache',
+  RETURNS: 'pos_canvass_returns_cache',
   QUEUE_TOKOS: 'pos_canvass_queue_tokos',
   QUEUE_ORDERS: 'pos_canvass_queue_orders',
   QUEUE_EXPENSES: 'pos_canvass_queue_expenses',
   QUEUE_DRAWS: 'pos_canvass_queue_draws',
   QUEUE_PURCHASES: 'pos_canvass_queue_purchases',
+  QUEUE_RETURNS: 'pos_canvass_queue_returns',
 };
 
 export const DEFAULT_SETTINGS: StoreSettings = {
@@ -601,7 +603,37 @@ export class StoreManager {
       }
     }
 
-    return { syncedOrders, syncedExpenses, syncedDraws, syncedPurchases };
+    // 5. Sync Returns Queue
+    let syncedReturns = 0;
+    const retQueueStr = localStorage.getItem(STORAGE_KEYS.QUEUE_RETURNS);
+    if (retQueueStr) {
+      try {
+        const retQueue = JSON.parse(retQueueStr);
+        const remainingRet = [];
+        for (const ret of retQueue) {
+          const { error } = await supabase.from('product_returns').insert([{
+            id: ret.id,
+            toko_id: ret.toko_id,
+            product_id: ret.product_id,
+            jumlah: ret.jumlah,
+            harga_nilai: ret.harga_nilai,
+            total_nilai: ret.total_nilai,
+            alasan: ret.alasan,
+            tindakan: ret.tindakan,
+            catatan: ret.catatan || '',
+            tanggal: ret.tanggal,
+          }]);
+          if (!error) syncedReturns++;
+          else remainingRet.push(ret);
+        }
+        if (remainingRet.length > 0) localStorage.setItem(STORAGE_KEYS.QUEUE_RETURNS, JSON.stringify(remainingRet));
+        else localStorage.removeItem(STORAGE_KEYS.QUEUE_RETURNS);
+      } catch (err) {
+        console.warn('Queue returns parse error:', err);
+      }
+    }
+
+    return { syncedOrders, syncedExpenses, syncedDraws, syncedPurchases, syncedReturns };
   }
 
   // Uses Supabase RPC: create_order_rpc
@@ -1376,5 +1408,106 @@ export class StoreManager {
         omset: map.get(dateStr) || 0,
       };
     });
+  }
+
+  // --- PRODUCT RETURNS (Retur Barang & Tukar Produk) ---
+  static async fetchReturns(): Promise<import('@/types').ProductReturn[]> {
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      return this.getReturnsCache();
+    }
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('product_returns')
+          .select('*, toko:tokos(*), product:products(*)')
+          .order('tanggal', { ascending: false });
+
+        if (!error && data) {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEYS.RETURNS, JSON.stringify(data));
+          }
+          return data as import('@/types').ProductReturn[];
+        }
+      } catch (err) {
+        console.warn('Supabase fetch returns error:', err);
+      }
+    }
+    return this.getReturnsCache();
+  }
+
+  static getReturnsCache(): import('@/types').ProductReturn[] {
+    if (typeof window === 'undefined') return [];
+    const stored = localStorage.getItem(STORAGE_KEYS.RETURNS);
+    const cachedReturns: import('@/types').ProductReturn[] = stored ? JSON.parse(stored) : [];
+
+    const queueStr = localStorage.getItem(STORAGE_KEYS.QUEUE_RETURNS);
+    if (queueStr) {
+      try {
+        const queue: import('@/types').ProductReturn[] = JSON.parse(queueStr);
+        const existingIds = new Set(cachedReturns.map((r) => r.id));
+        queue.forEach((q) => {
+          if (!existingIds.has(q.id)) {
+            cachedReturns.unshift(q);
+          }
+        });
+      } catch (err) {
+        console.warn('Queue returns parse warning:', err);
+      }
+    }
+    return cachedReturns;
+  }
+
+  static async saveReturn(returnData: Omit<import('@/types').ProductReturn, 'id' | 'created_at'>): Promise<import('@/types').ProductReturn> {
+    const newReturnId = generateUUID();
+    const newReturn: import('@/types').ProductReturn = {
+      ...returnData,
+      id: newReturnId,
+      created_at: new Date().toISOString(),
+    };
+
+    // If Tukar Barang Baru, deduct replacement product stock automatically
+    if (returnData.tindakan === 'Tukar Barang Baru') {
+      await this.updateStock(returnData.product_id, -returnData.jumlah);
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('product_returns')
+          .insert([{
+            id: newReturnId,
+            toko_id: returnData.toko_id,
+            product_id: returnData.product_id,
+            jumlah: returnData.jumlah,
+            harga_nilai: returnData.harga_nilai,
+            total_nilai: returnData.total_nilai,
+            alasan: returnData.alasan,
+            tindakan: returnData.tindakan,
+            catatan: returnData.catatan || '',
+            tanggal: returnData.tanggal,
+          }])
+          .select('*, toko:tokos(*), product:products(*)')
+          .single();
+
+        if (!error && data) {
+          await this.fetchReturns();
+          return data as import('@/types').ProductReturn;
+        }
+      } catch (err) {
+        console.warn('Supabase save return error:', err);
+      }
+    }
+
+    if (typeof window !== 'undefined') {
+      const qStr = localStorage.getItem(STORAGE_KEYS.QUEUE_RETURNS);
+      const qList = qStr ? JSON.parse(qStr) : [];
+      qList.push(newReturn);
+      localStorage.setItem(STORAGE_KEYS.QUEUE_RETURNS, JSON.stringify(qList));
+    }
+
+    const list = this.getReturnsCache();
+    const updated = [newReturn, ...list];
+    localStorage.setItem(STORAGE_KEYS.RETURNS, JSON.stringify(updated));
+    return newReturn;
   }
 }

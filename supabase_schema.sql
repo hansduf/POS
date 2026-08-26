@@ -402,6 +402,25 @@ ALTER TABLE public.owner_draws ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow all access to owner_draws" ON public.owner_draws;
 CREATE POLICY "Allow all access to owner_draws" ON public.owner_draws FOR ALL USING (true) WITH CHECK (true);
 
+-- 9. TABEL PRODUCT_RETURNS (Transaksi Retur Barang & Tukar Produk)
+CREATE TABLE IF NOT EXISTS public.product_returns (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    toko_id UUID NOT NULL REFERENCES public.tokos(id) ON DELETE CASCADE,
+    product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    jumlah INT NOT NULL DEFAULT 1,
+    harga_nilai DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    total_nilai DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    alasan VARCHAR(100) NOT NULL DEFAULT 'Bocor / Rusak',
+    tindakan VARCHAR(100) NOT NULL DEFAULT 'Tukar Barang Baru',
+    catatan TEXT,
+    tanggal DATE NOT NULL DEFAULT CURRENT_DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.product_returns ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to product_returns" ON public.product_returns;
+CREATE POLICY "Allow all access to product_returns" ON public.product_returns FOR ALL USING (true) WITH CHECK (true);
+
 -- =============================================================================
 -- DATA INITIAL / SEED SAMPLE DATA
 -- =============================================================================
