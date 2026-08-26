@@ -882,15 +882,35 @@ export class StoreManager {
   }
 
   // --- ANALYTICS ---
-  static getTokoPerformancesFromData(tokos: Toko[], orders: Order[]): TokoPerformance[] {
+  static getTokoPerformancesFromData(
+    tokos: Toko[],
+    orders: Order[],
+    returns: import('@/types').ProductReturn[] = []
+  ): TokoPerformance[] {
     return tokos.map((toko) => {
       const tokoOrders = orders.filter((o) => o.toko_id === toko.id);
-      const total_omset = tokoOrders.reduce((sum, o) => sum + o.total_bayar, 0);
+      const tokoReturns = returns.filter((r) => r.toko_id === toko.id);
+
+      const grossOmset = tokoOrders.reduce((sum, o) => sum + o.total_bayar, 0);
+
+      // Returns with Potong Piutang or Potong Tagihan Cash reduce Net Omset
+      const nonExchangeReturnsTotal = tokoReturns
+        .filter((r) => r.tindakan === 'Potong Piutang Tempo' || r.tindakan === 'Potong Tagihan Cash')
+        .reduce((sum, r) => sum + r.total_nilai, 0);
+
+      const total_omset = Math.max(0, grossOmset - nonExchangeReturnsTotal);
       const total_orders = tokoOrders.length;
 
-      const sisa_piutang = tokoOrders
+      // Returns with Potong Piutang reduces sisa_piutang
+      const piutangReturnsTotal = tokoReturns
+        .filter((r) => r.tindakan === 'Potong Piutang Tempo')
+        .reduce((sum, r) => sum + r.total_nilai, 0);
+
+      const grossPiutang = tokoOrders
         .filter((o) => o.jenis_pembayaran === 'Tempo' && o.status_pembayaran === 'Belum Lunas')
         .reduce((sum, o) => sum + o.total_bayar, 0);
+
+      const sisa_piutang = Math.max(0, grossPiutang - piutangReturnsTotal);
 
       const sortedOrders = [...tokoOrders].sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -1492,32 +1512,33 @@ export class StoreManager {
       await this.updateStock(returnData.product_id, -returnData.jumlah);
     }
 
-    // Automatically create corresponding Order entry for replacement delivery or record in Tab Pengiriman
-    try {
-      const delivDate = returnData.tanggal_pengiriman_pengganti || returnData.tanggal;
-      const delivStatus: import('@/types').StatusPengiriman =
-        returnData.status_pengiriman_pengganti ||
-        (returnData.tindakan === 'Tukar Barang Baru' ? 'Siap Kirim' : 'Terkirim');
+    // If Tukar Barang Baru, create a Rp 0 delivery order note for replacement delivery task
+    if (returnData.tindakan === 'Tukar Barang Baru') {
+      try {
+        const delivDate = returnData.tanggal_pengiriman_pengganti || returnData.tanggal;
+        const delivStatus: import('@/types').StatusPengiriman =
+          returnData.status_pengiriman_pengganti || 'Siap Kirim';
 
-      await this.createOrder({
-        toko_id: returnData.toko_id,
-        total_bayar: returnData.total_nilai,
-        jenis_pembayaran: `Retur (${returnData.tindakan})`,
-        status_pembayaran: 'Lunas',
-        tanggal_pengiriman: delivDate,
-        status_pengiriman: delivStatus,
-        catatan_pengiriman: `[RETUR BARANG ${noNotaRetur}] Alasan: ${returnData.alasan} • ${returnData.catatan || ''}`,
-        items: [
-          {
-            product_id: returnData.product_id,
-            jumlah: returnData.jumlah,
-            harga_deal: returnData.harga_nilai,
-            subtotal: returnData.total_nilai,
-          },
-        ],
-      });
-    } catch (err) {
-      console.warn('Error creating corresponding order for return:', err);
+        await this.createOrder({
+          toko_id: returnData.toko_id,
+          total_bayar: 0, // Rp 0 Total for Replacement Exchange (Does NOT add to Gross Omset)
+          jenis_pembayaran: `Tukar Barang Retur (Rp 0)`,
+          status_pembayaran: 'Lunas',
+          tanggal_pengiriman: delivDate,
+          status_pengiriman: delivStatus,
+          catatan_pengiriman: `[🔄 TUKAR BARANG RETUR ${noNotaRetur}] Alasan: ${returnData.alasan} • ${returnData.catatan || ''}`,
+          items: [
+            {
+              product_id: returnData.product_id,
+              jumlah: returnData.jumlah,
+              harga_deal: 0,
+              subtotal: 0,
+            },
+          ],
+        });
+      } catch (err) {
+        console.warn('Error creating replacement delivery order for return:', err);
+      }
     }
 
     if (isSupabaseConfigured && supabase) {

@@ -417,8 +417,8 @@ export default function Home() {
   }, [tokos, selectedTokoId]);
 
   const tokoPerformances: TokoPerformance[] = useMemo(() => {
-    return StoreManager.getTokoPerformancesFromData(tokos, orders);
-  }, [tokos, orders]);
+    return StoreManager.getTokoPerformancesFromData(tokos, orders, productReturns);
+  }, [tokos, orders, productReturns]);
 
   // Filtered Products
   const filteredProducts = useMemo(() => {
@@ -697,16 +697,26 @@ _Sistem Kasir Distributor POS Canvassing_`;
               <div className="bg-emerald-600 text-white p-3 rounded-xl shadow-xs">
                 <span className="text-[10px] font-bold opacity-80 block">💰 Setoran Cash {deliveryDate ? 'Tanggal Ini' : 'Semua'}</span>
                 <h4 className="text-sm sm:text-base font-black">
-                  {formatIDR(
-                    orders
+                  {(() => {
+                    const grossCash = orders
                       .filter(
                         (o) =>
                           (!deliveryDate || isSameDate(o.tanggal_pengiriman, deliveryDate)) &&
                           o.status_pembayaran === 'Lunas' &&
                           o.status_pengiriman === 'Terkirim'
                       )
-                      .reduce((sum, o) => sum + o.total_bayar, 0)
-                  )}
+                      .reduce((sum, o) => sum + o.total_bayar, 0);
+
+                    const cashRefunds = productReturns
+                      .filter(
+                        (r) =>
+                          (!deliveryDate || isSameDate(r.tanggal, deliveryDate)) &&
+                          r.tindakan === 'Potong Tagihan Cash'
+                      )
+                      .reduce((sum, r) => sum + r.total_nilai, 0);
+
+                    return formatIDR(Math.max(0, grossCash - cashRefunds));
+                  })()}
                 </h4>
               </div>
 
@@ -1548,8 +1558,14 @@ _Sistem Kasir Distributor POS Canvassing_`;
                 {(() => {
                   const filteredOrders = StoreManager.filterByPeriod(orders, financePeriod, 'tanggal_pengiriman');
                   const filteredExpenses = StoreManager.filterByPeriod(expenses, financePeriod, 'tanggal');
+                  const filteredReturns = StoreManager.filterByPeriod(productReturns, financePeriod, 'tanggal');
 
-                  const totalOmsetPeriod = filteredOrders.filter((o) => o.status_pembayaran === 'Lunas').reduce((sum, o) => sum + o.total_bayar, 0);
+                  const grossOmsetPeriod = filteredOrders.filter((o) => o.status_pembayaran === 'Lunas').reduce((sum, o) => sum + o.total_bayar, 0);
+                  const nonExchangeReturnsPeriod = filteredReturns
+                    .filter((r) => r.tindakan === 'Potong Piutang Tempo' || r.tindakan === 'Potong Tagihan Cash')
+                    .reduce((sum, r) => sum + r.total_nilai, 0);
+
+                  const totalOmsetPeriod = Math.max(0, grossOmsetPeriod - nonExchangeReturnsPeriod);
                   const totalOpsPeriod = filteredExpenses.reduce((sum, e) => sum + e.nominal, 0);
 
                   const expPercent = totalOmsetPeriod > 0
@@ -1895,10 +1911,17 @@ _Sistem Kasir Distributor POS Canvassing_`;
                   const filteredExpenses = StoreManager.filterByPeriod(expenses, financePeriod, 'tanggal');
                   const filteredPurchases = StoreManager.filterByPeriod(purchases, financePeriod, 'tanggal_beli');
                   const filteredDraws = StoreManager.filterByPeriod(ownerDraws, financePeriod, 'tanggal');
+                  const filteredReturns = StoreManager.filterByPeriod(productReturns, financePeriod, 'tanggal');
 
-                  const totalOmsetLunasPeriod = filteredOrders
+                  const grossOmsetPeriod = filteredOrders
                     .filter((o) => o.status_pembayaran === 'Lunas')
                     .reduce((sum, o) => sum + o.total_bayar, 0);
+
+                  const returnsDeduction = filteredReturns
+                    .filter((r) => r.tindakan === 'Potong Piutang Tempo' || r.tindakan === 'Potong Tagihan Cash')
+                    .reduce((sum, r) => sum + r.total_nilai, 0);
+
+                  const totalOmsetLunasPeriod = Math.max(0, grossOmsetPeriod - returnsDeduction);
 
                   const totalRestockPeriod = filteredPurchases.reduce((sum, p) => sum + p.total_belanja, 0);
                   const totalOpsPeriod = filteredExpenses.reduce((sum, e) => sum + e.nominal, 0);
