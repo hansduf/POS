@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Order, Purchase, Expense, OwnerDraw, SoloFinancialBuckets } from '@/types';
+import { Order, Purchase, Expense, OwnerDraw, ProductReturn, Product, SoloFinancialBuckets } from '@/types';
 import { StoreManager } from '@/lib/store';
 import {
   X,
@@ -23,6 +23,8 @@ interface SoloFinancialDashboardModalProps {
   purchases: Purchase[];
   expenses: Expense[];
   ownerDraws: OwnerDraw[];
+  returns?: ProductReturn[];
+  products?: Product[];
   onOpenExpenseModal: () => void;
   onOpenPurchaseModal: () => void;
   onOpenOwnerDrawModal: () => void;
@@ -35,6 +37,8 @@ export const SoloFinancialDashboardModal: React.FC<SoloFinancialDashboardModalPr
   purchases,
   expenses,
   ownerDraws,
+  returns = [],
+  products = [],
   onOpenExpenseModal,
   onOpenPurchaseModal,
   onOpenOwnerDrawModal,
@@ -52,7 +56,9 @@ export const SoloFinancialDashboardModal: React.FC<SoloFinancialDashboardModalPr
     orders,
     purchases,
     expenses,
-    ownerDraws
+    ownerDraws,
+    returns,
+    products
   );
 
   return (
@@ -65,9 +71,9 @@ export const SoloFinancialDashboardModal: React.FC<SoloFinancialDashboardModalPr
               💰
             </div>
             <div>
-              <h3 className="font-extrabold text-base leading-tight">Pos Keuangan Solo Distributor (3 Kantong)</h3>
+              <h3 className="font-extrabold text-base leading-tight">Pos Keuangan Solo Distributor (Opsi A)</h3>
               <p className="text-[11px] text-slate-400 font-medium">
-                Pemisahan Otomatis Modal Belanja, Operasional, & Gaji Pribadi Owner
+                100% Proteksi Modal Restock + Alokasi Margin Laba Kotor
               </p>
             </div>
           </div>
@@ -90,7 +96,7 @@ export const SoloFinancialDashboardModal: React.FC<SoloFinancialDashboardModalPr
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              3 Kantong Keuangan
+              3 Kantong Keuangan (Opsi A)
             </button>
             <button
               onClick={() => setActiveSubTab('history_exp')}
@@ -100,7 +106,7 @@ export const SoloFinancialDashboardModal: React.FC<SoloFinancialDashboardModalPr
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Histori Operasional ({expenses.length})
+              Riwayat Operasional ({expenses.length})
             </button>
             <button
               onClick={() => setActiveSubTab('history_draw')}
@@ -110,7 +116,7 @@ export const SoloFinancialDashboardModal: React.FC<SoloFinancialDashboardModalPr
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Histori Tarik Gaji ({ownerDraws.length})
+              Riwayat Tarik Gaji ({ownerDraws.length})
             </button>
           </div>
 
@@ -119,14 +125,14 @@ export const SoloFinancialDashboardModal: React.FC<SoloFinancialDashboardModalPr
               onClick={onOpenExpenseModal}
               className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-lg text-[11px] flex items-center gap-1 shadow-xs"
             >
-              <Fuel className="w-3.5 h-3.5" />
+              <Plus className="w-3.5 h-3.5" />
               <span>+ Operasional</span>
             </button>
             <button
               onClick={onOpenPurchaseModal}
-              className="px-2.5 py-1 bg-teal-600 hover:bg-teal-700 text-white font-extrabold rounded-lg text-[11px] flex items-center gap-1 shadow-xs"
+              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-lg text-[11px] flex items-center gap-1 shadow-xs"
             >
-              <Package className="w-3.5 h-3.5" />
+              <Plus className="w-3.5 h-3.5" />
               <span>+ Restock Supplier</span>
             </button>
             <button
@@ -144,14 +150,14 @@ export const SoloFinancialDashboardModal: React.FC<SoloFinancialDashboardModalPr
           {activeSubTab === 'buckets' && (
             <div className="space-y-4">
               {/* Total Omset Lunas Banner */}
-              <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-sm flex items-center justify-between">
+              <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-xs flex items-center justify-between">
                 <div>
                   <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
-                    Total Kas Masuk (Penjualan Lunas)
+                    Net Omset Terkumpul (Penjualan Lunas - Retur)
                   </span>
                   <h3 className="text-2xl font-black text-white">{formatIDR(buckets.totalOmsetLunas)}</h3>
                   <p className="text-[11px] text-emerald-400 font-medium">
-                    Telah dibagi otomatis ke 3 Pos Keuangan Usaha Solo Anda
+                    Telah diproteksi 100% modal stok + pembagian laba kotor
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-emerald-600/30 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-black text-xl">
@@ -166,10 +172,10 @@ export const SoloFinancialDashboardModal: React.FC<SoloFinancialDashboardModalPr
                   <div className="flex items-center justify-between text-emerald-800">
                     <span className="font-extrabold text-[11px] uppercase tracking-tight flex items-center gap-1">
                       <Package className="w-4 h-4 text-emerald-600" />
-                      1. Modal Belanja Stok
+                      1. Modal Restock
                     </span>
                     <span className="text-[10px] bg-emerald-100 text-emerald-800 font-black px-1.5 py-0.5 rounded">
-                      Pos 80%
+                      100% COGS
                     </span>
                   </div>
                   <h4 className="font-black text-xl text-slate-900">{formatIDR(buckets.posModalBelanjaStok)}</h4>
@@ -179,7 +185,7 @@ export const SoloFinancialDashboardModal: React.FC<SoloFinancialDashboardModalPr
                       <span className="font-bold text-slate-800">{formatIDR(buckets.totalPembelianRestock)}</span>
                     </div>
                     <p className="text-emerald-800 font-extrabold italic">
-                      * Uang terkunci khusus beli stok ke supplier.
+                      * Uang modal asli 100% aman untuk beli stok ke supplier.
                     </p>
                   </div>
                 </div>
@@ -192,7 +198,7 @@ export const SoloFinancialDashboardModal: React.FC<SoloFinancialDashboardModalPr
                       2. Operasional Lapangan
                     </span>
                     <span className="text-[10px] bg-amber-100 text-amber-800 font-black px-1.5 py-0.5 rounded">
-                      Pos 5%
+                      60% Laba
                     </span>
                   </div>
                   <h4 className="font-black text-xl text-slate-900">{formatIDR(buckets.posOperasional)}</h4>
@@ -214,61 +220,61 @@ export const SoloFinancialDashboardModal: React.FC<SoloFinancialDashboardModalPr
                   <div className="flex items-center justify-between text-blue-800">
                     <span className="font-extrabold text-[11px] uppercase tracking-tight flex items-center gap-1">
                       <Wallet className="w-4 h-4 text-blue-600" />
-                      3. Gaji Pribadi Saya
+                      3. Gaji / Profit Owner
                     </span>
                     <span className="text-[10px] bg-blue-100 text-blue-800 font-black px-1.5 py-0.5 rounded">
-                      Pos 15%
+                      40% Laba
                     </span>
                   </div>
                   <h4 className="font-black text-xl text-slate-900">{formatIDR(buckets.posGajiOwner)}</h4>
                   <div className="text-[10px] text-slate-500 space-y-0.5 pt-1 border-t border-slate-100">
                     <div className="flex justify-between">
-                      <span>Sudah Ditarik/Diambil:</span>
+                      <span>Sudah Ditarik Pribadi:</span>
                       <span className="font-bold text-slate-800">{formatIDR(buckets.totalPenarikanGaji)}</span>
                     </div>
                     <p className="text-blue-800 font-extrabold italic">
-                      * Uang BERSIH yang AMAN dibawa pulang.
+                      * Uang hasil usaha murni milik Anda (Bebas Ditarik).
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Information Banner */}
-              <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-2xl text-xs space-y-1 text-slate-700">
-                <h5 className="font-extrabold text-blue-900 flex items-center gap-1">
-                  <CheckCircle2 className="w-4 h-4 text-blue-700" />
-                  Keunggulan Sistem 3 Kantong untuk Usaha Solo:
-                </h5>
-                <ul className="list-disc list-inside text-[11px] space-y-0.5 text-slate-600 font-medium">
-                  <li>Uang modal belanja stok tidak pernah habis terpakai untuk keperluan rumah tangga.</li>
-                  <li>Anda selalu memiliki kepastian berapa gaji bersih yang boleh ditarik setiap minggu.</li>
-                  <li>Pengeluaran bensin dan makan di jalan tercatat rapi tanpa mengganggu keuangan usaha.</li>
-                </ul>
+              {/* Information Note */}
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-[11px] text-emerald-900 space-y-1">
+                <span className="font-extrabold flex items-center gap-1 uppercase text-emerald-950">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                  Keunggulan Sistem Kantong Opsi A:
+                </span>
+                <p className="text-slate-700 leading-relaxed font-medium">
+                  Sistem secara otomatis mengisolasi <strong>100% Harga Modal Asli (COGS)</strong> dari setiap transaksi. Dengan alokasi ini, Anda tidak akan pernah mengalami defisit modal re-stock akibat margin barang yang tipis (10-20%).
+                </p>
               </div>
             </div>
           )}
 
-          {/* SubTab 2: History Expenses */}
+          {/* Sub-Tab 2: History Expenses */}
           {activeSubTab === 'history_exp' && (
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
-              <h4 className="font-extrabold text-slate-900 text-xs uppercase flex items-center gap-1.5">
-                <Fuel className="w-4 h-4 text-amber-600" />
-                Histori Pengeluaran Operasional (BBM, Makan, Tol)
+            <div className="space-y-3">
+              <h4 className="font-extrabold text-sm text-slate-900">
+                Riwayat Pengeluaran Operasional ({expenses.length})
               </h4>
-
               {expenses.length === 0 ? (
-                <div className="text-center py-8 text-slate-400 font-bold">
+                <div className="text-center py-10 text-slate-400">
                   Belum ada catatan pengeluaran operasional.
                 </div>
               ) : (
-                <div className="divide-y divide-slate-100">
+                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs divide-y divide-slate-100">
                   {expenses.map((e) => (
-                    <div key={e.id} className="py-2 flex items-center justify-between text-xs">
+                    <div key={e.id} className="p-3 flex items-center justify-between">
                       <div>
-                        <div className="font-bold text-slate-900">{e.kategori}</div>
-                        <div className="text-[10px] text-slate-500">{e.keterangan || '-'} ({e.tanggal})</div>
+                        <span className="font-bold text-slate-900 block">{e.kategori}</span>
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          {e.tanggal} {e.keterangan ? `• ${e.keterangan}` : ''}
+                        </span>
                       </div>
-                      <span className="font-black text-amber-700">{formatIDR(e.nominal)}</span>
+                      <span className="font-black text-rose-600 text-sm">
+                        -{formatIDR(e.nominal)}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -276,43 +282,35 @@ export const SoloFinancialDashboardModal: React.FC<SoloFinancialDashboardModalPr
             </div>
           )}
 
-          {/* SubTab 3: History Owner Draws */}
+          {/* Sub-Tab 3: History Owner Draws */}
           {activeSubTab === 'history_draw' && (
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
-              <h4 className="font-extrabold text-slate-900 text-xs uppercase flex items-center gap-1.5">
-                <Wallet className="w-4 h-4 text-blue-600" />
-                Histori Penarikan Gaji / Uang Pribadi Owner
+            <div className="space-y-3">
+              <h4 className="font-extrabold text-sm text-slate-900">
+                Riwayat Penarikan Gaji Pribadi / Prive ({ownerDraws.length})
               </h4>
-
               {ownerDraws.length === 0 ? (
-                <div className="text-center py-8 text-slate-400 font-bold">
-                  Belum ada catatan penarikan gaji pribadi.
+                <div className="text-center py-10 text-slate-400">
+                  Belum ada catatan penarikan gaji owner.
                 </div>
               ) : (
-                <div className="divide-y divide-slate-100">
+                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs divide-y divide-slate-100">
                   {ownerDraws.map((d) => (
-                    <div key={d.id} className="py-2 flex items-center justify-between text-xs">
+                    <div key={d.id} className="p-3 flex items-center justify-between">
                       <div>
-                        <div className="font-bold text-slate-900">{d.catatan || 'Tarik Gaji Owner'}</div>
-                        <div className="text-[10px] text-slate-500">{d.tanggal}</div>
+                        <span className="font-bold text-slate-900 block">Penarikan Keperluan Pribadi</span>
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          {d.tanggal} {d.catatan ? `• ${d.catatan}` : ''}
+                        </span>
                       </div>
-                      <span className="font-black text-blue-800">{formatIDR(d.nominal)}</span>
+                      <span className="font-black text-blue-600 text-sm">
+                        -{formatIDR(d.nominal)}
+                      </span>
                     </div>
                   ))}
                 </div>
               )}
             </div>
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="p-3 bg-white border-t border-slate-200 flex justify-end shrink-0">
-          <button
-            onClick={onClose}
-            className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl text-xs shadow-xs"
-          >
-            Tutup Pos Keuangan
-          </button>
         </div>
       </div>
     </div>

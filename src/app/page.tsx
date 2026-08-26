@@ -526,14 +526,16 @@ export default function Home() {
   };
 
   const handleShareWhatsApp = () => {
-    const buckets = StoreManager.getSoloFinancialBuckets(orders, purchases, expenses, ownerDraws);
+    const buckets = StoreManager.getSoloFinancialBuckets(orders, purchases, expenses, ownerDraws, productReturns, products);
     const text = `*REKAP LAPORAN KEUANGAN ${storeSettings.nama_usaha.toUpperCase()}*
 ----------------------------------------
-💰 Total Omset Penjualan Lunas: ${formatIDR(buckets.totalOmsetLunas)}
+💰 Net Omset Penjualan: ${formatIDR(buckets.totalOmsetLunas)}
 
-📦 *Pos Belanja Stok (80%)*: ${formatIDR(buckets.posModalBelanjaStok)}
-⛽ *Pos Operasional (5%)*: ${formatIDR(buckets.posOperasional)}
-💵 *Pos Gaji Saya (15%)*: ${formatIDR(buckets.posGajiOwner)}
+📦 *Pos 1 (100% Modal Restock)*: ${formatIDR(buckets.posModalBelanjaStok)}
+🚚 *Pos 2 (60% Laba Ops)*: ${formatIDR(buckets.posOperasional)}
+💵 *Pos 3 (40% Laba Gaji)*: ${formatIDR(buckets.posGajiOwner)}
+----------------------------------------
+Sisa Saldo Kas Bersih: ${formatIDR(buckets.posModalBelanjaStok + buckets.posOperasional + buckets.posGajiOwner)}
 
 --- PENGGUNAAN SALDO ---
 📦 Restock Supplier: ${formatIDR(buckets.totalPembelianRestock)}
@@ -1442,19 +1444,19 @@ _Sistem Kasir Distributor POS Canvassing_`;
                       Kas Usaha Solo (Penjualan Lunas)
                     </span>
                     <h3 className="text-xl font-black text-white">
-                      {formatIDR(StoreManager.getSoloFinancialBuckets(orders, purchases, expenses, ownerDraws).totalOmsetLunas)}
+                      {formatIDR(StoreManager.getSoloFinancialBuckets(orders, purchases, expenses, ownerDraws, productReturns, products).totalOmsetLunas)}
                     </h3>
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] text-amber-300 font-bold bg-amber-400/20 px-2 py-0.5 rounded border border-amber-400/30">
-                      Solo Operator
+                      Opsi A (FIFO COGS)
                     </span>
                   </div>
                 </div>
 
                 {/* 3 Compact Pos Cards */}
                 {(() => {
-                  const buckets = StoreManager.getSoloFinancialBuckets(orders, purchases, expenses, ownerDraws);
+                  const buckets = StoreManager.getSoloFinancialBuckets(orders, purchases, expenses, ownerDraws, productReturns, products);
                   return (
                     <div className="space-y-2">
                       {/* Pos 1: Belanja Stok */}
@@ -1462,13 +1464,13 @@ _Sistem Kasir Distributor POS Canvassing_`;
                         <div className="space-y-0.5">
                           <div className="flex items-center gap-1.5 text-emerald-800 font-extrabold text-xs uppercase">
                             <Package className="w-4 h-4 text-emerald-600" />
-                            <span>1. Belanja Stok (80%)</span>
+                            <span>1. Modal Belanja Stok (100% COGS)</span>
                           </div>
                           <h4 className="font-black text-lg text-slate-900 leading-tight">
                             {formatIDR(buckets.posModalBelanjaStok)}
                           </h4>
                           <p className="text-[10px] text-slate-500 font-medium">
-                            Terpakai: {formatIDR(buckets.totalPembelianRestock)}
+                            Restock Terpakai: {formatIDR(buckets.totalPembelianRestock)}
                           </p>
                         </div>
                         <button
@@ -1485,13 +1487,13 @@ _Sistem Kasir Distributor POS Canvassing_`;
                         <div className="space-y-0.5">
                           <div className="flex items-center gap-1.5 text-amber-800 font-extrabold text-xs uppercase">
                             <Fuel className="w-4 h-4 text-amber-600" />
-                            <span>2. Operasional Lapangan (5%)</span>
+                            <span>2. Operasional Lapangan (60% Laba)</span>
                           </div>
                           <h4 className="font-black text-lg text-slate-900 leading-tight">
                             {formatIDR(buckets.posOperasional)}
                           </h4>
                           <p className="text-[10px] text-slate-500 font-medium">
-                            Terpakai: {formatIDR(buckets.totalPengeluaranOperasional)}
+                            Ops Terpakai: {formatIDR(buckets.totalPengeluaranOperasional)}
                           </p>
                         </div>
                         <button
@@ -1508,7 +1510,7 @@ _Sistem Kasir Distributor POS Canvassing_`;
                         <div className="space-y-0.5">
                           <div className="flex items-center gap-1.5 text-blue-800 font-extrabold text-xs uppercase">
                             <Wallet className="w-4 h-4 text-blue-600" />
-                            <span>3. Gaji Pribadi Saya (15%)</span>
+                            <span>3. Gaji / Profit Owner (40% Laba)</span>
                           </div>
                           <h4 className="font-black text-lg text-slate-900 leading-tight">
                             {formatIDR(buckets.posGajiOwner)}
@@ -1782,32 +1784,68 @@ _Sistem Kasir Distributor POS Canvassing_`;
             {/* SUB-TAB 2: STATISTIK & GRAFIK */}
             {financeSubTab === 'statistik' && (
               <div className="space-y-3 animate-fade-in">
-                {/* Visual Allocation Bar */}
-                <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs space-y-2">
-                  <h4 className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5 uppercase">
-                    <TrendingUp className="w-4 h-4 text-emerald-700" />
-                    Proporsi Alokasi Kas Usaha (100%)
-                  </h4>
+                {/* Visual Allocation Bar (Dynamic Opsi A) */}
+                {(() => {
+                  const filteredOrders = StoreManager.filterByPeriod(orders, financePeriod, 'tanggal_pengiriman');
+                  const filteredReturns = StoreManager.filterByPeriod(productReturns, financePeriod, 'tanggal');
 
-                  {/* Progress Bar */}
-                  <div className="h-5 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner border border-slate-200">
-                    <div className="h-full bg-emerald-600 text-[9px] font-black text-white flex items-center justify-center" style={{ width: '80%' }}>
-                      80% Stok
-                    </div>
-                    <div className="h-full bg-amber-500 text-[9px] font-black text-white flex items-center justify-center" style={{ width: '5%' }}>
-                      5%
-                    </div>
-                    <div className="h-full bg-blue-600 text-[9px] font-black text-white flex items-center justify-center" style={{ width: '15%' }}>
-                      15% Gaji
-                    </div>
-                  </div>
+                  const grossOmset = filteredOrders
+                    .filter((o) => o.status_pembayaran === 'Lunas')
+                    .reduce((sum, o) => sum + o.total_bayar, 0);
 
-                  <div className="grid grid-cols-3 gap-1 text-[10px] font-extrabold text-center pt-1">
-                    <div className="text-emerald-700 bg-emerald-50 py-1 rounded-lg border border-emerald-200">📦 Stok: 80%</div>
-                    <div className="text-amber-700 bg-amber-50 py-1 rounded-lg border border-amber-200">⛽ Ops: 5%</div>
-                    <div className="text-blue-700 bg-blue-50 py-1 rounded-lg border border-blue-200">💵 Gaji: 15%</div>
-                  </div>
-                </div>
+                  const nonExchangeReturns = filteredReturns
+                    .filter((r) => r.tindakan === 'Potong Piutang Tempo' || r.tindakan === 'Potong Tagihan Cash')
+                    .reduce((sum, r) => sum + r.total_nilai, 0);
+
+                  const netOmset = Math.max(0, grossOmset - nonExchangeReturns);
+
+                  let totalCOGS = 0;
+                  filteredOrders
+                    .filter((o) => o.status_pembayaran === 'Lunas')
+                    .forEach((order) => {
+                      order.items?.forEach((item) => {
+                        const prod = products.find((p) => p.id === item.product_id);
+                        const unitCost = prod?.harga_modal || (item.harga_deal * 0.8);
+                        totalCOGS += item.jumlah * unitCost;
+                      });
+                    });
+
+                  const totalLabaKotor = Math.max(0, netOmset - totalCOGS);
+                  const cogsPct = netOmset > 0 ? ((totalCOGS / netOmset) * 100).toFixed(1) : '80';
+                  const opsPct = netOmset > 0 ? (((totalLabaKotor * 0.6) / netOmset) * 100).toFixed(1) : '12';
+                  const profitPct = netOmset > 0 ? (((totalLabaKotor * 0.4) / netOmset) * 100).toFixed(1) : '8';
+
+                  return (
+                    <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5 uppercase">
+                          <TrendingUp className="w-4 h-4 text-emerald-700" />
+                          Proporsi Alokasi Kas Usaha Opsi A (100%)
+                        </h4>
+                        <span className="text-[10px] font-bold text-slate-500">Net Omset: {formatIDR(netOmset)}</span>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="h-5 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner border border-slate-200">
+                        <div className="h-full bg-emerald-600 text-[9px] font-black text-white flex items-center justify-center transition-all" style={{ width: `${cogsPct}%` }}>
+                          {cogsPct}% Modal COGS
+                        </div>
+                        <div className="h-full bg-amber-500 text-[9px] font-black text-white flex items-center justify-center transition-all" style={{ width: `${opsPct}%` }}>
+                          {opsPct}% Ops
+                        </div>
+                        <div className="h-full bg-blue-600 text-[9px] font-black text-white flex items-center justify-center transition-all" style={{ width: `${profitPct}%` }}>
+                          {profitPct}% Profit
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-1 text-[10px] font-extrabold text-center pt-1">
+                        <div className="text-emerald-700 bg-emerald-50 py-1 rounded-lg border border-emerald-200">📦 Modal Stok: {cogsPct}%</div>
+                        <div className="text-amber-700 bg-amber-50 py-1 rounded-lg border border-amber-200">🚚 Ops: {opsPct}%</div>
+                        <div className="text-blue-700 bg-blue-50 py-1 rounded-lg border border-blue-200">💰 Profit Owner: {profitPct}%</div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* % Growth Financial Trend Cards */}
                 {(() => {
@@ -2216,6 +2254,19 @@ _Sistem Kasir Distributor POS Canvassing_`;
 
                   const totalOmsetLunasPeriod = Math.max(0, grossOmsetPeriod - returnsDeduction);
 
+                  let totalCOGSPeriod = 0;
+                  filteredOrders
+                    .filter((o) => o.status_pembayaran === 'Lunas')
+                    .forEach((order) => {
+                      order.items?.forEach((item) => {
+                        const prod = products.find((p) => p.id === item.product_id);
+                        const unitCost = prod?.harga_modal || (item.harga_deal * 0.8);
+                        totalCOGSPeriod += item.jumlah * unitCost;
+                      });
+                    });
+
+                  const totalLabaKotorPeriod = Math.max(0, totalOmsetLunasPeriod - totalCOGSPeriod);
+
                   const totalRestockPeriod = filteredPurchases.reduce((sum, p) => sum + p.total_belanja, 0);
                   const totalOpsPeriod = filteredExpenses.reduce((sum, e) => sum + e.nominal, 0);
                   const totalGajiPeriod = filteredDraws.reduce((sum, d) => sum + d.nominal, 0);
@@ -2234,11 +2285,21 @@ _Sistem Kasir Distributor POS Canvassing_`;
 
                       <div className="space-y-2 text-xs">
                         <div className="flex justify-between items-center py-1 border-b border-slate-100">
-                          <span className="font-bold text-slate-700">1. Total Omset Penjualan Lunas</span>
+                          <span className="font-bold text-slate-700">1. Total Net Omset Penjualan</span>
                           <span className="font-black text-emerald-700">{formatIDR(totalOmsetLunasPeriod)}</span>
                         </div>
 
-                        <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                        <div className="flex justify-between items-center py-1 border-b border-slate-100 text-slate-600 pl-2">
+                          <span className="font-medium">• Modal Asli Terjual (COGS)</span>
+                          <span className="font-bold">{formatIDR(totalCOGSPeriod)}</span>
+                        </div>
+
+                        <div className="flex justify-between items-center py-1 border-b border-slate-100 text-emerald-900 pl-2">
+                          <span className="font-extrabold">• Laba Kotor Real (Gross Profit)</span>
+                          <span className="font-black">{formatIDR(totalLabaKotorPeriod)}</span>
+                        </div>
+
+                        <div className="flex justify-between items-center py-1 border-b border-slate-100 pt-1">
                           <span className="font-bold text-slate-700">2. Belanja Restock Supplier</span>
                           <span className="font-black text-rose-600">- {formatIDR(totalRestockPeriod)}</span>
                         </div>
@@ -2588,9 +2649,23 @@ _Sistem Kasir Distributor POS Canvassing_`;
         isOpen={isOwnerDrawModalOpen}
         onClose={() => setIsOwnerDrawModalOpen(false)}
         maxAvailableSalary={
-          StoreManager.getSoloFinancialBuckets(orders, purchases, expenses, ownerDraws).posGajiOwner
+          StoreManager.getSoloFinancialBuckets(orders, purchases, expenses, ownerDraws, productReturns, products).posGajiOwner
         }
         onSaveOwnerDraw={handleSaveOwnerDraw}
+      />
+
+      <SoloFinancialDashboardModal
+        isOpen={isSoloFinanceOpen}
+        onClose={() => setIsSoloFinanceOpen(false)}
+        orders={orders}
+        purchases={purchases}
+        expenses={expenses}
+        ownerDraws={ownerDraws}
+        returns={productReturns}
+        products={products}
+        onOpenExpenseModal={() => setIsExpenseModalOpen(true)}
+        onOpenPurchaseModal={() => setIsPurchaseModalOpen(true)}
+        onOpenOwnerDrawModal={() => setIsOwnerDrawModalOpen(true)}
       />
 
       {/* Edit / Add Product Modal */}

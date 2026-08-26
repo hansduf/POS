@@ -1251,23 +1251,47 @@ export class StoreManager {
     return newDraw;
   }
 
-  // --- SOLO FINANCIAL BUCKETS CALCULATION ---
+  // --- SOLO FINANCIAL BUCKETS CALCULATION (OPSI A: 100% COGS + MARGIN LABA KOTOR) ---
   static getSoloFinancialBuckets(
     orders: Order[],
     purchases: import('@/types').Purchase[],
     expenses: import('@/types').Expense[],
-    ownerDraws: import('@/types').OwnerDraw[]
+    ownerDraws: import('@/types').OwnerDraw[],
+    returns: import('@/types').ProductReturn[] = [],
+    products: import('@/types').Product[] = []
   ): import('@/types').SoloFinancialBuckets {
     const lunasOrders = orders.filter((o) => o.status_pembayaran === 'Lunas');
-    const totalOmsetLunas = lunasOrders.reduce((sum, o) => sum + o.total_bayar, 0);
+    const grossOmsetLunas = lunasOrders.reduce((sum, o) => sum + o.total_bayar, 0);
+
+    const nonExchangeReturns = returns
+      .filter((r) => r.tindakan === 'Potong Piutang Tempo' || r.tindakan === 'Potong Tagihan Cash')
+      .reduce((sum, r) => sum + r.total_nilai, 0);
+
+    const totalOmsetLunas = Math.max(0, grossOmsetLunas - nonExchangeReturns);
+
+    // Calculate COGS / HPP (100% Modal Asli Terjual)
+    let totalCOGS = 0;
+    lunasOrders.forEach((order) => {
+      order.items?.forEach((item) => {
+        const prod = products.find((p) => p.id === item.product_id);
+        const unitCost = prod?.harga_modal || (item.harga_deal * 0.8);
+        totalCOGS += item.jumlah * unitCost;
+      });
+    });
+
+    const totalLabaKotor = Math.max(0, totalOmsetLunas - totalCOGS);
 
     const totalPembelianRestock = purchases.reduce((sum, p) => sum + p.total_belanja, 0);
     const totalPengeluaranOperasional = expenses.reduce((sum, e) => sum + e.nominal, 0);
     const totalPenarikanGaji = ownerDraws.reduce((sum, d) => sum + d.nominal, 0);
 
-    const posModalBelanjaStok = Math.max(0, (totalOmsetLunas * 0.80) - totalPembelianRestock);
-    const posOperasional = Math.max(0, (totalOmsetLunas * 0.05) - totalPengeluaranOperasional);
-    const posGajiOwner = Math.max(0, (totalOmsetLunas * 0.15) - totalPenarikanGaji);
+    // Pos Opsi A:
+    // 1. Pos 1: 100% COGS Terproteksi - Pembelian Restock Terpakai
+    const posModalBelanjaStok = Math.max(0, totalCOGS - totalPembelianRestock);
+    // 2. Pos 2: Operasional (60% Laba Kotor) - Pengeluaran Operasional Real
+    const posOperasional = Math.max(0, (totalLabaKotor * 0.60) - totalPengeluaranOperasional);
+    // 3. Pos 3: Gaji Owner (40% Laba Kotor) - Penarikan Gaji Real
+    const posGajiOwner = Math.max(0, (totalLabaKotor * 0.40) - totalPenarikanGaji);
 
     return {
       totalOmsetLunas,
