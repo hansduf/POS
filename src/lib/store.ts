@@ -638,10 +638,10 @@ export class StoreManager {
   }
 
   // Uses Supabase RPC: create_order_rpc
-  static async createOrder(orderData: Omit<Order, 'id' | 'no_nota' | 'created_at'>): Promise<Order> {
+  static async createOrder(orderData: Omit<Order, 'id' | 'created_at' | 'no_nota'> & { no_nota?: string }): Promise<Order> {
     const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const randomNum = Math.floor(1000 + Math.random() * 9000);
-    const noNota = `INV-${datePart}-${randomNum}`;
+    const noNota = orderData.no_nota || `INV-${datePart}-${randomNum}`;
 
     if (isSupabaseConfigured && supabase) {
       try {
@@ -1520,6 +1520,7 @@ export class StoreManager {
           returnData.status_pengiriman_pengganti || 'Siap Kirim';
 
         await this.createOrder({
+          no_nota: noNotaRetur,
           toko_id: returnData.toko_id,
           total_bayar: 0, // Rp 0 Total for Replacement Exchange (Does NOT add to Gross Omset)
           jenis_pembayaran: `Tukar Barang Retur (Rp 0)`,

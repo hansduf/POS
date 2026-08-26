@@ -120,6 +120,7 @@ export default function Home() {
   const [selectedNotaRetur, setSelectedNotaRetur] = useState<ProductReturn | null>(null);
   const [selectedTokoDetail, setSelectedTokoDetail] = useState<TokoPerformance | null>(null);
   const [stockSubTab, setStockSubTab] = useState<'produk' | 'histori_retur'>('produk');
+  const [returnsPeriodFilter, setReturnsPeriodFilter] = useState<import('@/types').TimePeriod>('all');
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [isOwnerDrawModalOpen, setIsOwnerDrawModalOpen] = useState(false);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
@@ -464,6 +465,14 @@ export default function Home() {
       return matchDate && matchPasar && matchStatus;
     });
   }, [orders, tokos, deliveryDate, deliveryPasarFilter, deliveryStatusFilter]);
+
+  // Filtered and Sorted Returns for Histori Retur Sub-Tab (Newest First)
+  const filteredReturnsList = useMemo(() => {
+    const periodFiltered = StoreManager.filterByPeriod(productReturns, returnsPeriodFilter, 'tanggal');
+    return [...periodFiltered].sort(
+      (a, b) => new Date(b.created_at || b.tanggal).getTime() - new Date(a.created_at || a.tanggal).getTime()
+    );
+  }, [productReturns, returnsPeriodFilter]);
 
   // Delivery Load Items for Modal
   const loadItems: DeliveryLoadItem[] = useMemo(() => {
@@ -1128,28 +1137,52 @@ _Sistem Kasir Distributor POS Canvassing_`;
             {/* SUB-TAB 2: HISTORI RETUR BARANG & KLAIM PASAR */}
             {stockSubTab === 'histori_retur' && (
               <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2">
                   <div>
                     <h3 className="font-extrabold text-xs text-slate-900 flex items-center gap-1.5 uppercase">
                       <RefreshCw className="w-4 h-4 text-amber-600" />
-                      <span>Histori Retur & Klaim Barang Pasar ({productReturns.length})</span>
+                      <span>Histori Retur & Klaim Barang Pasar ({filteredReturnsList.length})</span>
                     </h3>
                     <p className="text-[10px] text-slate-500 font-bold">Pencatatan barang bocor, expired, & tukar barang dari toko</p>
                   </div>
 
-                  <span className="text-[11px] font-black text-amber-900 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 shrink-0">
-                    Total: {formatIDR(productReturns.reduce((sum, r) => sum + r.total_nilai, 0))}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {/* Period Filter Pills */}
+                    <div className="flex items-center gap-1 overflow-x-auto text-[10px]">
+                      {[
+                        { id: 'all', label: 'Semua' },
+                        { id: 'today', label: 'Hari Ini' },
+                        { id: 'weekly', label: '7 Hari' },
+                        { id: 'monthly', label: 'Bulan Ini' },
+                      ].map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => setReturnsPeriodFilter(p.id as import('@/types').TimePeriod)}
+                          className={`px-2 py-0.5 rounded-full font-bold transition-all whitespace-nowrap ${
+                            returnsPeriodFilter === p.id
+                              ? 'bg-amber-600 text-white shadow-2xs'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <span className="text-[11px] font-black text-amber-900 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 shrink-0">
+                      Total: {formatIDR(filteredReturnsList.reduce((sum, r) => sum + r.total_nilai, 0))}
+                    </span>
+                  </div>
                 </div>
 
-                {productReturns.length === 0 ? (
+                {filteredReturnsList.length === 0 ? (
                   <div className="text-center py-10 text-slate-400 space-y-1">
                     <RefreshCw className="w-8 h-8 mx-auto text-slate-300" />
-                    <p className="text-xs font-bold text-slate-700">Belum ada riwayat transaksi retur barang</p>
+                    <p className="text-xs font-bold text-slate-700">Belum ada riwayat transaksi retur barang untuk periode ini</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-200 text-xs">
-                    {productReturns.map((ret) => {
+                    {filteredReturnsList.map((ret) => {
                       const toko = tokos.find((t) => t.id === ret.toko_id) || ret.toko;
                       const prod = products.find((p) => p.id === ret.product_id) || ret.product;
                       return (

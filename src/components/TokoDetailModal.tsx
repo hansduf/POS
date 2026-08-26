@@ -56,9 +56,13 @@ export const TokoDetailModal: React.FC<TokoDetailModalProps> = ({
 
   if (!isOpen || !toko) return null;
 
-  // Filter orders & returns for this specific toko
-  const tokoOrders = orders.filter((o) => o.toko_id === toko.id);
-  const tokoReturns = returns.filter((r) => r.toko_id === toko.id);
+  // Filter & sort orders & returns for this specific toko (Newest at top)
+  const tokoOrders = [...orders.filter((o) => o.toko_id === toko.id)].sort(
+    (a, b) => new Date(b.created_at || b.tanggal_pengiriman).getTime() - new Date(a.created_at || a.tanggal_pengiriman).getTime()
+  );
+  const tokoReturns = [...returns.filter((r) => r.toko_id === toko.id)].sort(
+    (a, b) => new Date(b.created_at || b.tanggal).getTime() - new Date(a.created_at || a.tanggal).getTime()
+  );
 
   const totalBelanja = toko.total_omset || 0;
   const totalReturNilai = tokoReturns.reduce((sum, r) => sum + r.total_nilai, 0);
