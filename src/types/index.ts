@@ -170,6 +170,7 @@ export type ReturnAction =
 
 export interface ProductReturn {
   id: string;
+  no_nota_retur?: string;
   toko_id: string;
   toko?: Toko;
   product_id: string;

@@ -18,6 +18,7 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
 
 interface TokoPerformanceCardProps {
@@ -26,6 +27,7 @@ interface TokoPerformanceCardProps {
   onSelectForOrder: (toko: TokoPerformance) => void;
   onEditToko?: (toko: TokoPerformance) => void;
   onOpenNota?: (order: Order) => void;
+  onOpenReturnModal?: (tokoId: string) => void;
 }
 
 export const TokoPerformanceCard: React.FC<TokoPerformanceCardProps> = ({
@@ -34,6 +36,7 @@ export const TokoPerformanceCard: React.FC<TokoPerformanceCardProps> = ({
   onSelectForOrder,
   onEditToko,
   onOpenNota,
+  onOpenReturnModal,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -96,6 +99,16 @@ export const TokoPerformanceCard: React.FC<TokoPerformanceCardProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5">
+          {onOpenReturnModal && (
+            <button
+              onClick={() => onOpenReturnModal(toko.id)}
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs rounded-lg shadow-sm transition-all active:scale-95 whitespace-nowrap"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>🔄 Retur</span>
+            </button>
+          )}
+
           <button
             onClick={() => onSelectForOrder(toko)}
             className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-lg shadow-sm transition-all active:scale-95 whitespace-nowrap"

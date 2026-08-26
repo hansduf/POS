@@ -613,6 +613,7 @@ export class StoreManager {
         for (const ret of retQueue) {
           const { error } = await supabase.from('product_returns').insert([{
             id: ret.id,
+            no_nota_retur: ret.no_nota_retur,
             toko_id: ret.toko_id,
             product_id: ret.product_id,
             jumlah: ret.jumlah,
@@ -1459,9 +1460,14 @@ export class StoreManager {
 
   static async saveReturn(returnData: Omit<import('@/types').ProductReturn, 'id' | 'created_at'>): Promise<import('@/types').ProductReturn> {
     const newReturnId = generateUUID();
+    const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    const noNotaRetur = returnData.no_nota_retur || `RET-${datePart}-${randomNum}`;
+
     const newReturn: import('@/types').ProductReturn = {
       ...returnData,
       id: newReturnId,
+      no_nota_retur: noNotaRetur,
       created_at: new Date().toISOString(),
     };
 
@@ -1476,6 +1482,7 @@ export class StoreManager {
           .from('product_returns')
           .insert([{
             id: newReturnId,
+            no_nota_retur: noNotaRetur,
             toko_id: returnData.toko_id,
             product_id: returnData.product_id,
             jumlah: returnData.jumlah,

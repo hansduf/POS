@@ -18,6 +18,7 @@ import { ExpenseModal } from '@/components/ExpenseModal';
 import { OwnerDrawModal } from '@/components/OwnerDrawModal';
 import { SoloFinancialDashboardModal } from '@/components/SoloFinancialDashboardModal';
 import { ReturnModal } from '@/components/ReturnModal';
+import { NotaReturModal } from '@/components/NotaReturModal';
 import { StoreManager, DEFAULT_SETTINGS, getLocalTodayStr } from '@/lib/store';
 import {
   Toko,
@@ -115,6 +116,8 @@ export default function Home() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [ownerDraws, setOwnerDraws] = useState<OwnerDraw[]>([]);
   const [productReturns, setProductReturns] = useState<ProductReturn[]>([]);
+  const [selectedNotaRetur, setSelectedNotaRetur] = useState<ProductReturn | null>(null);
+  const [stockSubTab, setStockSubTab] = useState<'produk' | 'histori_retur'>('produk');
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [isOwnerDrawModalOpen, setIsOwnerDrawModalOpen] = useState(false);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
@@ -219,8 +222,9 @@ export default function Home() {
   };
 
   const handleSaveReturn = async (returnData: Omit<ProductReturn, 'id' | 'created_at'>) => {
-    await StoreManager.saveReturn(returnData);
+    const saved = await StoreManager.saveReturn(returnData);
     await refreshData();
+    setSelectedNotaRetur(saved);
   };
 
   const handleSavePurchase = async (purchaseData: {
@@ -950,124 +954,178 @@ _Sistem Kasir Distributor POS Canvassing_`;
               </div>
             </div>
 
-            {/* Product Mobile Card List (Zero Horizontal Scroll) */}
-            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs divide-y divide-slate-200">
-              {isLoadingData ? (
-                <div className="text-center py-12 text-slate-500 space-y-2">
-                  <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                  <p className="text-xs font-bold">Memuat data stok gudang...</p>
-                </div>
-              ) : products.length === 0 ? (
-                <div className="text-center py-12 text-slate-500 space-y-1">
-                  <Package className="w-10 h-10 text-slate-400 mx-auto" />
-                  <p className="text-xs font-bold text-slate-700">Belum ada data stok barang</p>
-                </div>
-              ) : (
-                products.map((p) => (
-                  <div key={p.id} className="p-3 hover:bg-slate-50 transition-colors">
-                    <div className="flex items-start justify-between gap-2 mb-1.5">
-                      <div>
-                        <h4 className="font-extrabold text-slate-900 text-sm leading-snug">{p.nama_produk}</h4>
-                        <p className="text-[11px] font-semibold text-slate-500">
-                          SKU: <span className="font-mono text-slate-700">{p.kode_sku}</span> • Satuan: <span className="text-slate-900 font-bold">{p.satuan}</span>
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span
-                          className={`px-2 py-0.5 rounded text-xs font-black ${
-                            p.stok > 10
-                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                              : p.stok > 0
-                              ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                              : 'bg-rose-50 text-rose-800 border border-rose-200'
-                          }`}
-                        >
-                          Stok: {p.stok}
-                        </span>
-
-                        <button
-                          onClick={() => {
-                            setEditingProduct(p);
-                            setIsProductModalOpen(true);
-                          }}
-                          className="p-1.5 text-slate-600 hover:text-emerald-700 hover:bg-slate-100 rounded-lg border border-slate-200"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* 3-Tier Price Badges Row */}
-                    <div className="grid grid-cols-3 gap-1.5 text-[11px] pt-1">
-                      <div className="bg-slate-50 p-1.5 rounded-lg border border-slate-200">
-                        <span className="text-[10px] text-slate-500 font-bold block">Modal:</span>
-                        <span className="font-bold text-slate-700">{formatIDR(p.harga_modal)}</span>
-                      </div>
-
-                      <div className="bg-slate-50 p-1.5 rounded-lg border border-slate-200">
-                        <span className="text-[10px] text-slate-500 font-bold block">Normal:</span>
-                        <span className="font-bold text-slate-900">{formatIDR(p.harga_normal)}</span>
-                      </div>
-
-                      <div className="bg-amber-50 p-1.5 rounded-lg border border-amber-200">
-                        <span className="text-[10px] text-amber-800 font-bold block">Min Jual:</span>
-                        <span className="font-black text-amber-900">{formatIDR(p.harga_minimum)}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
+            {/* Sub-tab Navigation for Tab Stok */}
+            <div className="flex items-center gap-1.5 border-b border-slate-200 pb-2 overflow-x-auto scrollbar-none">
+              <button
+                onClick={() => setStockSubTab('produk')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all border shrink-0 ${
+                  stockSubTab === 'produk'
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                📦 Katalog & Stok Produk ({products.length})
+              </button>
+              <button
+                onClick={() => setStockSubTab('histori_retur')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all border shrink-0 ${
+                  stockSubTab === 'histori_retur'
+                    ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                🔄 Histori Retur & Klaim Pasar ({productReturns.length})
+              </button>
             </div>
 
-            {/* Histori Transaksi Retur Barang Pasar Card */}
-            <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <h3 className="font-extrabold text-xs text-slate-900 flex items-center gap-1.5 uppercase">
-                  <RefreshCw className="w-4 h-4 text-amber-600" />
-                  <span>Histori Retur & Klaim Barang Pasar ({productReturns.length})</span>
-                </h3>
-                <span className="text-[11px] font-black text-amber-900 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
-                  Total Nilai: {formatIDR(productReturns.reduce((sum, r) => sum + r.total_nilai, 0))}
-                </span>
-              </div>
-
-              {productReturns.length === 0 ? (
-                <div className="text-center py-6 text-slate-400 space-y-1">
-                  <RefreshCw className="w-6 h-6 mx-auto text-slate-300" />
-                  <p className="text-xs font-bold text-slate-600">Belum ada riwayat transaksi retur barang</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-100 text-xs">
-                  {productReturns.slice(0, 10).map((ret) => {
-                    const toko = tokos.find((t) => t.id === ret.toko_id) || ret.toko;
-                    const prod = products.find((p) => p.id === ret.product_id) || ret.product;
-                    return (
-                      <div key={ret.id} className="py-2 flex items-start justify-between gap-2">
+            {/* SUB-TAB 1: KATALOG & STOK PRODUK */}
+            {stockSubTab === 'produk' && (
+              <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs divide-y divide-slate-200">
+                {isLoadingData ? (
+                  <div className="text-center py-12 text-slate-500 space-y-2">
+                    <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                    <p className="text-xs font-bold">Memuat data stok gudang...</p>
+                  </div>
+                ) : products.length === 0 ? (
+                  <div className="text-center py-12 text-slate-500 space-y-1">
+                    <Package className="w-10 h-10 text-slate-400 mx-auto" />
+                    <p className="text-xs font-bold text-slate-700">Belum ada data stok barang</p>
+                  </div>
+                ) : (
+                  products.map((p) => (
+                    <div key={p.id} className="p-3 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-start justify-between gap-2 mb-1.5">
                         <div>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-extrabold text-slate-900">{toko?.nama_toko || 'Toko Pelanggan'}</span>
-                            <span className="text-[10px] font-mono text-slate-400">({ret.tanggal})</span>
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300">
-                              {ret.alasan}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-600 font-bold mt-0.5">
-                            {prod?.nama_produk || 'Produk'} • {ret.jumlah} {prod?.satuan || 'Pcs'} @ {formatIDR(ret.harga_nilai)}
-                          </p>
-                          <p className="text-[10px] text-teal-800 font-extrabold mt-0.5">
-                            Solusi: {ret.tindakan} {ret.catatan ? `• ${ret.catatan}` : ''}
+                          <h4 className="font-extrabold text-slate-900 text-sm leading-snug">{p.nama_produk}</h4>
+                          <p className="text-[11px] font-semibold text-slate-500">
+                            SKU: <span className="font-mono text-slate-700">{p.kode_sku}</span> • Satuan: <span className="text-slate-900 font-bold">{p.satuan}</span>
                           </p>
                         </div>
-                        <span className="font-black text-amber-900 shrink-0 text-xs">
-                          {formatIDR(ret.total_nilai)}
-                        </span>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span
+                            className={`px-2 py-0.5 rounded text-xs font-black ${
+                              p.stok > 10
+                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                : p.stok > 0
+                                ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                : 'bg-rose-50 text-rose-800 border border-rose-200'
+                            }`}
+                          >
+                            Stok: {p.stok}
+                          </span>
+
+                          <button
+                            onClick={() => {
+                              setEditingProduct(p);
+                              setIsProductModalOpen(true);
+                            }}
+                            className="p-1.5 text-slate-600 hover:text-emerald-700 hover:bg-slate-100 rounded-lg border border-slate-200"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
-                    );
-                  })}
+
+                      {/* 3-Tier Price Badges Row */}
+                      <div className="grid grid-cols-3 gap-1.5 text-[11px] pt-1">
+                        <div className="bg-slate-50 p-1.5 rounded-lg border border-slate-200">
+                          <span className="text-[10px] text-slate-500 font-bold block">Modal:</span>
+                          <span className="font-bold text-slate-700">{formatIDR(p.harga_modal)}</span>
+                        </div>
+
+                        <div className="bg-slate-50 p-1.5 rounded-lg border border-slate-200">
+                          <span className="text-[10px] text-slate-500 font-bold block">Normal:</span>
+                          <span className="font-bold text-slate-900">{formatIDR(p.harga_normal)}</span>
+                        </div>
+
+                        <div className="bg-amber-50 p-1.5 rounded-lg border border-amber-200">
+                          <span className="text-[10px] text-amber-800 font-bold block">Min Jual:</span>
+                          <span className="font-black text-amber-900">{formatIDR(p.harga_minimum)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* SUB-TAB 2: HISTORI RETUR BARANG & KLAIM PASAR */}
+            {stockSubTab === 'histori_retur' && (
+              <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <div>
+                    <h3 className="font-extrabold text-xs text-slate-900 flex items-center gap-1.5 uppercase">
+                      <RefreshCw className="w-4 h-4 text-amber-600" />
+                      <span>Histori Retur & Klaim Barang Pasar ({productReturns.length})</span>
+                    </h3>
+                    <p className="text-[10px] text-slate-500 font-bold">Pencatatan barang bocor, expired, & tukar barang dari toko</p>
+                  </div>
+
+                  <span className="text-[11px] font-black text-amber-900 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 shrink-0">
+                    Total: {formatIDR(productReturns.reduce((sum, r) => sum + r.total_nilai, 0))}
+                  </span>
                 </div>
-              )}
-            </div>
+
+                {productReturns.length === 0 ? (
+                  <div className="text-center py-10 text-slate-400 space-y-1">
+                    <RefreshCw className="w-8 h-8 mx-auto text-slate-300" />
+                    <p className="text-xs font-bold text-slate-700">Belum ada riwayat transaksi retur barang</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-200 text-xs">
+                    {productReturns.map((ret) => {
+                      const toko = tokos.find((t) => t.id === ret.toko_id) || ret.toko;
+                      const prod = products.find((p) => p.id === ret.product_id) || ret.product;
+                      return (
+                        <div key={ret.id} className="py-3 flex items-start justify-between gap-3 hover:bg-slate-50 transition-colors rounded-lg px-1">
+                          <div className="space-y-1 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-extrabold text-slate-900 text-sm">{toko?.nama_toko || 'Toko Pelanggan'}</span>
+                              <span className="text-[10px] font-mono font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
+                                {ret.no_nota_retur || 'RET-001'}
+                              </span>
+                              <span className="text-[10px] font-mono text-slate-400">Tgl: {ret.tanggal}</span>
+                            </div>
+
+                            <p className="text-xs font-extrabold text-slate-700">
+                              {prod?.nama_produk || 'Produk'} • <strong className="text-slate-900">{ret.jumlah} {prod?.satuan || 'Pcs'}</strong> @ {formatIDR(ret.harga_nilai)}
+                            </p>
+
+                            <div className="flex items-center gap-2 text-[10px] flex-wrap pt-0.5">
+                              <span className="px-2 py-0.5 rounded font-black bg-rose-100 text-rose-800 border border-rose-300">
+                                Alasan: {ret.alasan}
+                              </span>
+                              <span className="px-2 py-0.5 rounded font-black bg-teal-100 text-teal-800 border border-teal-300">
+                                Solusi: {ret.tindakan}
+                              </span>
+                            </div>
+
+                            {ret.catatan && (
+                              <p className="text-[11px] text-slate-500 italic">
+                                Catatan: "{ret.catatan}"
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="text-right space-y-1 shrink-0">
+                            <span className="font-black text-amber-900 text-sm block">
+                              {formatIDR(ret.total_nilai)}
+                            </span>
+                            <button
+                              onClick={() => setSelectedNotaRetur(ret)}
+                              className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-[11px] rounded-lg shadow-xs flex items-center gap-1 ml-auto"
+                            >
+                              <span>📄 Struk Retur</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -1146,6 +1204,10 @@ _Sistem Kasir Distributor POS Canvassing_`;
                       setIsTokoModalOpen(true);
                     }}
                     onOpenNota={(ord) => setSelectedNota(ord)}
+                    onOpenReturnModal={(tokoId) => {
+                      setSelectedTokoId(tokoId);
+                      setIsReturnModalOpen(true);
+                    }}
                   />
                 ))
               )}
@@ -2293,6 +2355,16 @@ _Sistem Kasir Distributor POS Canvassing_`;
         products={products}
         defaultTokoId={selectedTokoId}
         onSaveReturn={handleSaveReturn}
+      />
+
+      {/* Printable Nota Retur Modal */}
+      <NotaReturModal
+        isOpen={!!selectedNotaRetur}
+        onClose={() => setSelectedNotaRetur(null)}
+        productReturn={selectedNotaRetur}
+        tokos={tokos}
+        products={products}
+        settings={storeSettings}
       />
     </div>
   );

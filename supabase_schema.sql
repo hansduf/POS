@@ -405,6 +405,7 @@ CREATE POLICY "Allow all access to owner_draws" ON public.owner_draws FOR ALL US
 -- 9. TABEL PRODUCT_RETURNS (Transaksi Retur Barang & Tukar Produk)
 CREATE TABLE IF NOT EXISTS public.product_returns (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    no_nota_retur VARCHAR(100),
     toko_id UUID NOT NULL REFERENCES public.tokos(id) ON DELETE CASCADE,
     product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
     jumlah INT NOT NULL DEFAULT 1,
