@@ -35,7 +35,7 @@ export type JenisPembayaran =
   | string;
 
 export type StatusPembayaran = 'Lunas' | 'Belum Lunas';
-export type StatusPengiriman = 'Disiapkan' | 'Siap Kirim' | 'Terkirim' | 'Batal';
+export type StatusPengiriman = 'Disiapkan' | 'Siap Kirim' | 'Dalam Perjalanan' | 'Terkirim' | 'Batal';
 
 export interface OrderItem {
   id?: string;
@@ -182,6 +182,8 @@ export interface ProductReturn {
   tindakan: ReturnAction | string;
   catatan?: string;
   tanggal: string;
+  tanggal_pengiriman_pengganti?: string;
+  status_pengiriman_pengganti?: StatusPengiriman;
   created_at?: string;
 }
 

@@ -1492,16 +1492,21 @@ export class StoreManager {
       await this.updateStock(returnData.product_id, -returnData.jumlah);
     }
 
-    // Automatically create corresponding Order entry so it appears in Tab Pengiriman
+    // Automatically create corresponding Order entry for replacement delivery or record in Tab Pengiriman
     try {
+      const delivDate = returnData.tanggal_pengiriman_pengganti || returnData.tanggal;
+      const delivStatus: import('@/types').StatusPengiriman =
+        returnData.status_pengiriman_pengganti ||
+        (returnData.tindakan === 'Tukar Barang Baru' ? 'Siap Kirim' : 'Terkirim');
+
       await this.createOrder({
         toko_id: returnData.toko_id,
         total_bayar: returnData.total_nilai,
         jenis_pembayaran: `Retur (${returnData.tindakan})`,
         status_pembayaran: 'Lunas',
-        tanggal_pengiriman: returnData.tanggal,
-        status_pengiriman: 'Terkirim',
-        catatan_pengiriman: `[RETUR BARANG] ${returnData.alasan}: ${returnData.catatan || ''}`,
+        tanggal_pengiriman: delivDate,
+        status_pengiriman: delivStatus,
+        catatan_pengiriman: `[RETUR BARANG ${noNotaRetur}] Alasan: ${returnData.alasan} • ${returnData.catatan || ''}`,
         items: [
           {
             product_id: returnData.product_id,

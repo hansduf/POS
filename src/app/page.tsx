@@ -448,7 +448,9 @@ export default function Home() {
   // Filtered Orders for Pengiriman Tab
   const filteredOrders = useMemo(() => {
     return orders.filter((o) => {
-      const matchDate = !deliveryDate || o.tanggal_pengiriman === deliveryDate;
+      const matchDate =
+        !deliveryDate ||
+        (o.tanggal_pengiriman && o.tanggal_pengiriman.substring(0, 10) === deliveryDate.substring(0, 10));
       const toko = tokos.find((t) => t.id === o.toko_id);
       const matchPasar =
         deliveryPasarFilter === 'SEMUA' || toko?.lokasi_pasar === deliveryPasarFilter;

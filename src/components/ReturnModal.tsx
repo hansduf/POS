@@ -32,6 +32,8 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
   const [tindakan, setTindakan] = useState<ReturnAction>('Tukar Barang Baru');
   const [catatan, setCatatan] = useState<string>('');
   const [tanggal, setTanggal] = useState<string>(todayStr);
+  const [tanggalPengganti, setTanggalPengganti] = useState<string>(todayStr);
+  const [statusPengganti, setStatusPengganti] = useState<import('@/types').StatusPengiriman>('Siap Kirim');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -82,6 +84,8 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
         tindakan,
         catatan,
         tanggal,
+        tanggal_pengiriman_pengganti: tanggalPengganti,
+        status_pengiriman_pengganti: statusPengganti,
       });
       onClose();
     } catch (err) {
@@ -120,34 +124,32 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
     {
       id: 'Potong Tagihan Cash',
       label: '💵 Potong Tagihan Cash',
-      desc: 'Mengurangi total setoran cash belanja hari ini',
+      desc: 'Kembalikan uang cash setoran / refund tunai',
       icon: '💵',
     },
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-xs animate-fade-in overflow-y-auto">
-      <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden border border-slate-200 my-auto">
-        {/* Modal Header */}
-        <div className="bg-amber-600 px-4 py-3.5 text-white flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <RefreshCw className="w-5 h-5 text-amber-200" />
-            <div>
-              <h3 className="font-extrabold text-sm sm:text-base leading-tight">Form Retur Barang & Tukar Produk</h3>
-              <p className="text-[11px] text-amber-100 font-bold">Catat klaim barang rusak / expired dari toko pasar</p>
-            </div>
-          </div>
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 z-50 animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+        {/* Header Modal */}
+        <div className="bg-slate-900 text-white p-3.5 flex items-center justify-between shrink-0">
+          <h2 className="text-sm font-extrabold flex items-center gap-1.5 uppercase tracking-wide">
+            <RefreshCw className="w-4 h-4 text-amber-400" />
+            Pencatatan Retur Barang & Klaim Pasar
+          </h2>
+
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-amber-700/50 text-white transition-colors"
+            className="p-1 rounded-full bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Modal Body */}
-        <form onSubmit={handleSubmit} className="p-4 space-y-3.5 text-xs">
-          {/* Toko Selection */}
+        {/* Form Input */}
+        <form onSubmit={handleSubmit} className="p-4 space-y-3 overflow-y-auto flex-1 text-xs">
+          {/* Pilih Toko */}
           <div>
             <label className="block text-[11px] font-extrabold text-slate-700 mb-1 flex items-center gap-1">
               <StoreIcon className="w-3.5 h-3.5 text-amber-600" />
@@ -157,45 +159,45 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
               value={selectedTokoId}
               onChange={(e) => setSelectedTokoId(e.target.value)}
               required
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-amber-600"
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-black text-slate-900 focus:outline-none focus:border-amber-600"
             >
-              {tokos.map((toko) => (
-                <option key={toko.id} value={toko.id}>
-                  {toko.nama_toko} ({toko.lokasi_pasar})
+              {tokos.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.nama_toko} ({t.lokasi_pasar}) - {t.nama_pemilik}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Product Selection */}
+          {/* Pilih Produk */}
           <div>
             <label className="block text-[11px] font-extrabold text-slate-700 mb-1 flex items-center gap-1">
               <Package className="w-3.5 h-3.5 text-amber-600" />
-              <span>Produk Yang Diretur</span>
+              <span>Pilih Produk Yang Diretur</span>
             </label>
             <select
               value={selectedProductId}
               onChange={(e) => setSelectedProductId(e.target.value)}
               required
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-amber-600"
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-black text-slate-900 focus:outline-none focus:border-amber-600"
             >
               {products.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.nama_produk} ({p.satuan}) - Stok: {p.stok}
+                  {p.nama_produk} (Stok: {p.stok} {p.satuan}) - Normal: {formatIDR(p.harga_normal)}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Qty & Unit Price Input */}
+          {/* Jumlah & Harga */}
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-[10px] font-bold text-slate-600 mb-1">Jumlah Retur (Qty)</label>
+              <label className="block text-[10px] font-bold text-slate-600 mb-1">Jumlah Retur (Pcs/Pak)</label>
               <input
                 type="number"
                 min="1"
                 value={jumlah}
-                onChange={(e) => setJumlah(parseInt(e.target.value, 10) || 1)}
+                onChange={(e) => setJumlah(Math.max(1, parseInt(e.target.value, 10) || 1))}
                 required
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-black text-slate-900 focus:outline-none focus:border-amber-600"
               />
@@ -280,10 +282,45 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
             </div>
           </div>
 
+          {/* Perencanaan Pengiriman Barang Pengganti (jika Tukar Barang Baru) */}
+          {tindakan === 'Tukar Barang Baru' && (
+            <div className="bg-emerald-50/80 border border-emerald-200 p-3 rounded-xl space-y-2">
+              <span className="text-xs font-extrabold text-emerald-900 flex items-center gap-1.5 uppercase">
+                <Package className="w-4 h-4 text-emerald-700" />
+                Perencanaan Pengiriman Barang Pengganti
+              </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-700 mb-0.5">Tanggal Delivery Barang Pengganti</label>
+                  <input
+                    type="date"
+                    value={tanggalPengganti}
+                    onChange={(e) => setTanggalPengganti(e.target.value)}
+                    required
+                    className="w-full px-2.5 py-1.5 bg-white border border-emerald-300 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-700 mb-0.5">Status Delivery</label>
+                  <select
+                    value={statusPengganti}
+                    onChange={(e) => setStatusPengganti(e.target.value as import('@/types').StatusPengiriman)}
+                    className="w-full px-2.5 py-1.5 bg-white border border-emerald-300 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-600"
+                  >
+                    <option value="Siap Kirim">📦 Masuk Perencanaan Delivery (Siap Kirim)</option>
+                    <option value="Terkirim">✅ Sudah Ditukar di Tempat Hari Ini (Terkirim)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Tanggal & Catatan */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
-              <label className="block text-[10px] font-bold text-slate-600 mb-1">Tanggal Transaksi</label>
+              <label className="block text-[10px] font-bold text-slate-600 mb-1">Tanggal Transaksi Retur</label>
               <input
                 type="date"
                 value={tanggal}
