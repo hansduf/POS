@@ -601,12 +601,12 @@ _Sistem Kasir Distributor POS Canvassing_`;
       )}
 
       {/* Main Container */}
-      <main className="max-w-4xl lg:max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pt-2 pb-24 md:pb-8">
+      <main className="w-full max-w-4xl md:max-w-6xl lg:max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pt-2 pb-24 md:pb-8">
         {/* TAB 1: ORDER SALES */}
         {activeTab === 'order' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
             {/* Catalog Column */}
-            <div className="lg:col-span-7 xl:col-span-8 space-y-2">
+            <div className="md:col-span-7 xl:col-span-8 space-y-2">
               {/* Sticky Compact Header for Toko Select & Search */}
               <div className="bg-white border-b border-slate-200 p-3 rounded-xl shadow-xs sticky top-[53px] z-20 space-y-2">
                 <div className="flex items-center justify-between gap-2">
@@ -704,8 +704,8 @@ _Sistem Kasir Distributor POS Canvassing_`;
               </div>
             </div>
 
-            {/* Live Cart Sidebar Column on Tablet Landscape / Desktop */}
-            <div className="hidden lg:block lg:col-span-5 xl:col-span-4 sticky top-[65px]">
+            {/* Live Cart Sidebar Column on Tablet Landscape / Portrait / Desktop */}
+            <div className="hidden md:block md:col-span-5 xl:col-span-4 sticky top-[65px]">
               <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
                 <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                   <div className="flex items-center gap-2">
