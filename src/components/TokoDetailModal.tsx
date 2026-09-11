@@ -79,7 +79,7 @@ export const TokoDetailModal: React.FC<TokoDetailModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 z-50 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-2xl max-w-2xl lg:max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
         {/* Header Modal */}
         <div className="bg-slate-900 text-white p-4 flex items-start justify-between relative shrink-0">
           <div className="space-y-1">

@@ -41,22 +41,22 @@ export const Navigation: React.FC<NavigationProps> = ({
 
   return (
     <>
-      {/* Desktop Top Navbar (High Contrast Light Mode) */}
-      <header className="hidden md:flex items-center justify-between px-6 py-3.5 bg-white border-b border-slate-200 text-slate-900 sticky top-0 z-40 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center shadow-sm text-white font-black text-lg">
+      {/* Desktop & Tablet Top Navbar */}
+      <header className="hidden md:flex items-center justify-between px-4 lg:px-6 py-3 bg-white border-b border-slate-200 text-slate-900 sticky top-0 z-40 shadow-sm">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center shadow-sm text-white font-black text-lg shrink-0">
             {initialLetter}
           </div>
-          <div>
-            <h1 className="font-extrabold text-base leading-tight text-slate-900">
+          <div className="min-w-0">
+            <h1 className="font-extrabold text-sm sm:text-base leading-tight text-slate-900 truncate max-w-[160px] lg:max-w-none">
               {storeName}
             </h1>
-            <p className="text-[11px] text-slate-500 font-medium">Sistem Penjualan & Pengiriman Lapangan</p>
+            <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium truncate">Sistem Penjualan & Pengiriman Lapangan</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <nav className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+        <div className="flex items-center gap-2 lg:gap-3">
+          <nav className="flex items-center gap-0.5 lg:gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -64,16 +64,16 @@ export const Navigation: React.FC<NavigationProps> = ({
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all relative ${
+                  className={`flex items-center gap-1.5 px-2.5 lg:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all relative ${
                     isActive
                       ? 'bg-emerald-600 text-white shadow-sm'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
-                  <span>{item.label}</span>
+                  <Icon className="w-4 h-4 shrink-0" />
+                  <span className="hidden sm:inline-block">{item.label}</span>
                   {item.badge !== null && (
-                    <span className="ml-1 px-1.5 py-0.2 text-[10px] font-extrabold bg-amber-400 text-slate-950 rounded-full">
+                    <span className="ml-0.5 px-1.5 py-0.2 text-[10px] font-extrabold bg-amber-400 text-slate-950 rounded-full">
                       {item.badge}
                     </span>
                   )}
@@ -82,10 +82,25 @@ export const Navigation: React.FC<NavigationProps> = ({
             })}
           </nav>
 
+          {activeTab === 'order' && (
+            <button
+              onClick={openCart}
+              className={`flex lg:hidden items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl shadow-sm transition-all active:scale-95 ${
+                cartCount > 0
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-slate-100 text-slate-700 border border-slate-300'
+              }`}
+              title="Buka Keranjang Belanja"
+            >
+              <ShoppingBag className="w-4 h-4" />
+              <span className="font-extrabold">{cartCount}</span>
+            </button>
+          )}
+
           {onOpenSettings && (
             <button
               onClick={onOpenSettings}
-              className="p-2 text-slate-600 hover:text-emerald-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl transition-colors"
+              className="p-2 text-slate-600 hover:text-emerald-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl transition-colors shrink-0"
               title="Pengaturan Profil Usaha & Nota"
             >
               <Settings className="w-4 h-4" />

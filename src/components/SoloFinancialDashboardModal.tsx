@@ -63,7 +63,7 @@ export const SoloFinancialDashboardModal: React.FC<SoloFinancialDashboardModalPr
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl text-slate-900 flex flex-col max-h-[92vh]">
+      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl overflow-hidden shadow-2xl text-slate-900 flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3.5 bg-slate-900 text-white shrink-0">
           <div className="flex items-center gap-2.5">

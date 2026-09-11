@@ -51,6 +51,7 @@ import {
   Fuel,
   ArrowDownRight,
   Store as StoreIcon,
+  ShoppingBag,
   Package,
   TrendingUp,
   TrendingDown,
@@ -600,103 +601,191 @@ _Sistem Kasir Distributor POS Canvassing_`;
       )}
 
       {/* Main Container */}
-      <main className="max-w-4xl mx-auto px-2 sm:px-4 pt-2">
+      <main className="max-w-4xl lg:max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pt-2 pb-24 md:pb-8">
         {/* TAB 1: ORDER SALES */}
         {activeTab === 'order' && (
-          <div className="space-y-2">
-            {/* Sticky Compact Header for Toko Select & Search */}
-            <div className="bg-white border-b border-slate-200 p-3 rounded-xl shadow-xs sticky top-[53px] z-20 space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                {/* Toko Selector */}
-                <div className="flex-1 flex items-center gap-2">
-                  <StoreIcon className="w-4 h-4 text-emerald-700 shrink-0" />
-                  <select
-                    value={selectedTokoId}
-                    onChange={(e) => setSelectedTokoId(e.target.value)}
-                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-black text-slate-900 focus:outline-none focus:border-emerald-600"
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+            {/* Catalog Column */}
+            <div className="lg:col-span-7 xl:col-span-8 space-y-2">
+              {/* Sticky Compact Header for Toko Select & Search */}
+              <div className="bg-white border-b border-slate-200 p-3 rounded-xl shadow-xs sticky top-[53px] z-20 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  {/* Toko Selector */}
+                  <div className="flex-1 flex items-center gap-2">
+                    <StoreIcon className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <select
+                      value={selectedTokoId}
+                      onChange={(e) => setSelectedTokoId(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-black text-slate-900 focus:outline-none focus:border-emerald-600"
+                    >
+                      {tokos.length === 0 ? (
+                        <option value="">Belum Ada Toko Terdaftar</option>
+                      ) : (
+                        tokos.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.nama_toko} ({t.lokasi_pasar})
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+
+                  <button
+                    onClick={() => setIsTokoModalOpen(true)}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-extrabold shadow-xs active:scale-95 whitespace-nowrap"
                   >
-                    {tokos.length === 0 ? (
-                      <option value="">Belum Ada Toko Terdaftar</option>
-                    ) : (
-                      tokos.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.nama_toko} ({t.lokasi_pasar})
-                        </option>
-                      ))
-                    )}
-                  </select>
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Toko Baru</span>
+                  </button>
                 </div>
 
-                <button
-                  onClick={() => setIsTokoModalOpen(true)}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-extrabold shadow-xs active:scale-95 whitespace-nowrap"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>+ Toko Baru</span>
-                </button>
+                {/* Toko Info Subbar */}
+                {selectedToko && (
+                  <div className="flex items-center justify-between text-[11px] text-slate-700 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
+                    <span>Pasar: <strong className="text-emerald-800 font-extrabold">{selectedToko.lokasi_pasar}</strong></span>
+                    <span>Pemilik: <strong className="text-slate-900 font-bold">{selectedToko.nama_pemilik}</strong> ({selectedToko.no_hp})</span>
+                  </div>
+                )}
+
+                {/* Search Input & Category Pills */}
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input
+                      type="text"
+                      placeholder="Cari produk / SKU..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-600"
+                    />
+                  </div>
+
+                  {/* Category Pills Horizontal Scroll */}
+                  <div className="flex items-center gap-1 overflow-x-auto max-w-[180px] sm:max-w-xs md:max-w-md lg:max-w-lg scrollbar-none">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => setSelectedCategory(cat)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap border transition-all ${
+                          selectedCategory === cat
+                            ? 'bg-emerald-600 text-white border-emerald-600'
+                            : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              {/* Toko Info Subbar */}
-              {selectedToko && (
-                <div className="flex items-center justify-between text-[11px] text-slate-700 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
-                  <span>Pasar: <strong className="text-emerald-800 font-extrabold">{selectedToko.lokasi_pasar}</strong></span>
-                  <span>Pemilik: <strong className="text-slate-900 font-bold">{selectedToko.nama_pemilik}</strong> ({selectedToko.no_hp})</span>
-                </div>
-              )}
-
-              {/* Search Input & Category Pills */}
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
-                  <input
-                    type="text"
-                    placeholder="Cari produk / SKU..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-600"
-                  />
-                </div>
-
-                {/* Category Pills Horizontal Scroll */}
-                <div className="flex items-center gap-1 overflow-x-auto max-w-[180px] sm:max-w-xs scrollbar-none">
-                  {categories.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => setSelectedCategory(cat)}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap border transition-all ${
-                        selectedCategory === cat
-                          ? 'bg-emerald-600 text-white border-emerald-600'
-                          : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
+              {/* Products List & Tablet Grid View */}
+              <div className="bg-white md:bg-transparent border md:border-0 border-slate-200 rounded-xl overflow-hidden shadow-xs divide-y divide-slate-200 md:divide-y-0 md:grid md:grid-cols-2 md:gap-3">
+                {isLoadingData ? (
+                  <div className="text-center py-12 text-slate-500 space-y-2 col-span-2">
+                    <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                    <p className="text-xs font-bold">Memuat katalog produk...</p>
+                  </div>
+                ) : filteredProducts.length === 0 ? (
+                  <div className="text-center py-12 text-slate-500 space-y-1 col-span-2">
+                    <Package className="w-10 h-10 text-slate-400 mx-auto" />
+                    <p className="text-xs font-bold text-slate-700">Tidak ada produk ditemukan</p>
+                  </div>
+                ) : (
+                  filteredProducts.map((product) => (
+                    <div key={product.id} className="md:bg-white md:border md:border-slate-200 md:rounded-xl md:shadow-xs overflow-hidden">
+                      <ProductCard
+                        product={product}
+                        onAddToCart={handleAddToCart}
+                      />
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
-            {/* Products List (Divided by horizontal lines ___) */}
-            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs divide-y divide-slate-200">
-              {isLoadingData ? (
-                <div className="text-center py-12 text-slate-500 space-y-2">
-                  <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                  <p className="text-xs font-bold">Memuat katalog produk...</p>
+            {/* Live Cart Sidebar Column on Tablet Landscape / Desktop */}
+            <div className="hidden lg:block lg:col-span-5 xl:col-span-4 sticky top-[65px]">
+              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <div className="flex items-center gap-2">
+                    <ShoppingBag className="w-5 h-5 text-emerald-700" />
+                    <div>
+                      <h3 className="font-extrabold text-sm text-slate-900 leading-tight">
+                        {selectedToko?.nama_toko || 'Ringkasan Order'}
+                      </h3>
+                      <p className="text-[11px] text-slate-500 font-medium">
+                        {selectedToko?.lokasi_pasar || 'Pilih Toko'}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-800">
+                    {cartItems.reduce((sum, i) => sum + i.qty, 0)} Items
+                  </span>
                 </div>
-              ) : filteredProducts.length === 0 ? (
-                <div className="text-center py-12 text-slate-500 space-y-1">
-                  <Package className="w-10 h-10 text-slate-400 mx-auto" />
-                  <p className="text-xs font-bold text-slate-700">Tidak ada produk ditemukan</p>
+
+                {cartItems.length === 0 ? (
+                  <div className="text-center py-8 text-slate-400 space-y-1">
+                    <ShoppingBag className="w-8 h-8 mx-auto text-slate-300" />
+                    <p className="text-xs font-bold text-slate-600">Keranjang Masih Kosong</p>
+                    <p className="text-[11px] text-slate-400">Klik "+ Order" pada katalog produk untuk menambah barang.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1 text-xs divide-y divide-slate-100">
+                    {cartItems.map((item) => (
+                      <div key={item.product.id} className="pt-2 flex items-center justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h5 className="font-bold text-slate-900 truncate">{item.product.nama_produk}</h5>
+                          <p className="text-[11px] text-slate-500">
+                            {formatIDR(item.dealPrice)} x {item.qty} {item.product.satuan}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => handleUpdateCartQty(item.product.id, item.qty - 1)}
+                            className="w-6 h-6 rounded bg-slate-100 border border-slate-300 font-black text-slate-700 hover:bg-slate-200"
+                          >
+                            -
+                          </button>
+                          <span className="font-black text-slate-900 text-xs min-w-[16px] text-center">{item.qty}</span>
+                          <button
+                            onClick={() => handleUpdateCartQty(item.product.id, item.qty + 1)}
+                            className="w-6 h-6 rounded bg-slate-100 border border-slate-300 font-black text-slate-700 hover:bg-slate-200"
+                          >
+                            +
+                          </button>
+                          <span className="font-black text-emerald-800 text-xs ml-1">
+                            {formatIDR(item.qty * item.dealPrice)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Total & Action */}
+                <div className="pt-2 border-t border-slate-200 space-y-2">
+                  <div className="flex justify-between items-center text-sm font-extrabold text-slate-900">
+                    <span>Total Bayar:</span>
+                    <span className="text-base text-emerald-700 font-black">
+                      {formatIDR(cartItems.reduce((sum, item) => sum + item.qty * item.dealPrice, 0))}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => setIsCartOpen(true)}
+                    disabled={cartItems.length === 0}
+                    className={`w-full py-2.5 rounded-xl font-extrabold text-xs text-white shadow-sm transition-all flex items-center justify-center gap-2 ${
+                      cartItems.length > 0
+                        ? 'bg-emerald-600 hover:bg-emerald-700 active:scale-95'
+                        : 'bg-slate-300 cursor-not-allowed'
+                    }`}
+                  >
+                    <ShoppingBag className="w-4 h-4" />
+                    <span>Lanjut Ke Pembayaran & Struk</span>
+                  </button>
                 </div>
-              ) : (
-                filteredProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onAddToCart={handleAddToCart}
-                  />
-                ))
-              )}
+              </div>
             </div>
           </div>
         )}
